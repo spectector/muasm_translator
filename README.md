@@ -1,2 +1,2 @@
-# muasm_translator
+# muASM translator
 
