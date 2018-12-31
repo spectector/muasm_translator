@@ -126,6 +126,8 @@ tr_ins_(exp2(F), [A,B,C]) := R :- !, R = ~tr_exp2(F,A,B,C).
 tr_ins_(assign_exp1(F), [A]) := R :- !, R = ~tr_exp1(F,A,A).
 % B <- F(B,A) (and sometimes update flags)
 tr_ins_(assign_exp2(F), [A,B]) := R :- !, R = ~tr_exp2(F,A,B,B).
+% Substraction with borrow % TODO: Finish 
+tr_ins_(subb, [A,B]) := R :- !, E =.. [<,c1,c2], R = [(f<-E), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)]. % if c1>=c2 then (Result - 1) else Result
 % Update flags
 tr_ins_(uflags(F), [A,B]) := R :- !,
 	tr_in([A,B],[A1,B1],R,R0),
@@ -183,6 +185,7 @@ tr_ins_(jmp, [A]) := R :- !,
 tr_exp1(F,A,B) := R :- !,
 	tr_in([A],[A1],R,R0),
 	( F = neg -> X = -A1, UFlags = no
+	; F = not -> X = A1 # (-1), UFlags = yes
 	; F = inc -> X = A1+1, UFlags = yes
 	; F = dec -> X = A1-1, UFlags = yes
 	; throw(error(unsupported_exp1(F), tr_ins_/3))
@@ -196,6 +199,7 @@ tr_exp2(F,A,B,C) := R :- !,
 	( F = (*) -> X = ~simpl_mul(A1,B1), UFlags = no
 	; F = (+) -> X = (B1+A1), UFlags = yes
 	; F = (-) -> X = (B1-A1), UFlags = yes
+	; F = (#) -> X = (B1#A1), UFlags = yes
 	; X =.. [F,B1,A1], UFlags = no
 	),
 	( C=X, UFlags = no -> R0 = [skip]

@@ -49,7 +49,11 @@ ins(subb, o, assign_exp2(-)).
 ins(subq, o, assign_exp2(-)).
 ins(neg, o, assign_exp1(neg)).
 ins(negl, o, assign_exp1(neg)).
-ins(sbb, o, assign_exp2(-)). % TODO: add borrow
+ins(not, o, assign_exp1(not)).
+ins(notq, o, assign_exp1(not)).
+ins(sbb, o, subb). % TODO: add borrow from every operation
+ins(sbbq, o, subb). % TODO: add borrow from every operation
+ins(xorb, o,  assign_exp2(#)).
 ins(xorl, o,  assign_exp2(#)).
 ins(xorq, o,  assign_exp2(#)).
 ins(xor, o,  assign_exp2(#)).
@@ -77,6 +81,7 @@ ins(cmovae, o, condmov(uge)).
 ins(cmovbq, o, condmov(ul)).
 ins(cmovb, o, condmov(ul)).
 ins(cmovbeq, o, condmov(ule)).
+ins(cmovbe, o, condmov(ule)).
 ins(cmoveq, o, condmov(=)).
 ins(cmovneq, o, condmov(\=)).
 ins(cmovlq, o, condmov(<)).
@@ -102,6 +107,7 @@ ins(je, a, branch(=)).
 ins(jne, a, branch(\=)).
 ins(ja, a, branch(ug)).
 ins(jae, a, branch(uge)).
+ins(jnb, a, branch(uge)).
 ins(jb, a, branch(ul)).
 ins(jbe, a, branch(ule)).
 ins(jg, a, branch(>)).
@@ -110,6 +116,7 @@ ins(seta, a, condset(ug)).
 ins(setae, a, condset(uge)).
 ins(setb, a, condset(ul)).
 ins(sete, a, condset(=)).
+ins(setne, a, condset(\=)).
 ins(jmp, a, jmp).
 ins(shrq, o, assign_exp2(>>)).
 ins(shrl, o, assign_exp2(>>)).
@@ -118,9 +125,12 @@ ins(shll, o, assign_exp2(<<)).
 ins(shl, o, assign_exp2(<<)).
 ins(shlq, o, assign_exp2(<<)).
 ins(sarq, o, assign_exp2(ashr)).
+ins(sall, o, assign_exp2(<<)). % TODO: fix?
+ins(salq, o, assign_exp2(<<)). % TODO: fix?
 ins(cltd, o, clt).
 ins(cltq, o, clt).
 ins(cdqe, o, clt).
+ins(cqto, o, clt). % TODO: Introduce functionality
 ins(pushq, o, push).
 ins(push, o, push).
 ins(pushl, o, push).
