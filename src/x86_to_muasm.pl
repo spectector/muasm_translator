@@ -13,11 +13,12 @@
 % limitations under the License.
 % ===========================================================================
 
-:- module(_, [translate_x86_to_muasm/4], [assertions, dcg, fsyntax, datafacts]).
+:- module(_, [translate_x86_to_muasm/5], [assertions, dcg, fsyntax, datafacts]).
 
 :- use_module(engine(messages_basic)). 
 :- use_module(library(dict)).
 :- use_module(library(llists), [flatten/2]).
+:- use_module(library(lists), [select/3]).
 
 :- use_module(.(gas_parser)).
 :- use_module(.(intel_parser)).
@@ -26,27 +27,49 @@
 % (muasm syntax)
 :- op(980, xfx, [(<-)]). % priority between (::) and (,)
 
-translate_x86_to_muasm(Format, F, Dic, Masm) :-
+translate_x86_to_muasm(Format, F, Dic, Mem, Masm) :-
 	( Format = intel -> parse_file_intel(F, PrgX86)
 	; Format = gas -> parse_file_gas(F, PrgX86)
 	),
 	R = ~tr_insns(PrgX86),
 	R2 = ~flatten(R),
-	fix_labels(R2, Dic, Masm), !.
-translate_x86_to_muasm(_, _, _, _) :-
-	throw(error(failed_to_parse, translate_x86_to_muasm/4)).
+	fix_labels(R2, Dic, _, _, Mem, Masm), !.
+translate_x86_to_muasm(_, _, _, _, _) :-
+	throw(error(failed_to_parse, translate_x86_to_muasm/5)).
 
 % Resolve pending labels (this remove lookup_label/2 entries)
-fix_labels([], _) := [].
-fix_labels([lookup_label(Label0,Label)|Xs], Dic) := ~fix_labels(Xs, Dic) :- !,
+:- export(fix_labels/6).
+fix_labels([], _, _, Mem, Mem) := [].
+fix_labels([lookup_label(Label0,Label)|Xs], Dic, Name, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem0, Mem1) :- !,
 	dic_lookup(Dic, Label0, Label).
-fix_labels([X|Xs], Dic) := [X| ~fix_labels(Xs, Dic)] :- !.
+fix_labels([name(Name)|Xs], Dic, _, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem0, Mem1) :- !.
+fix_labels([dual(Name, Data)|Xs], Dic, _, Mem0, Mem1) := ~fix_labels([Data|Xs], Dic, Name, Mem0, Mem1) :- !.
+fix_labels([dir(init, N)|Xs], Dic, Name, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem, Mem1) :-
+	!,
+	( dic_get(Mem0, Name, V) ->
+	  ( select(consR(L), V, VR) ->
+	    dic_replace(Mem0, Name, [consR([N|L])|VR], Mem)
+	  ; dic_replace(Mem0, Name, [consR([N])|V], Mem)
+	  )
+	; dic_lookup(Mem0, Name, [consR([N])]), Mem = Mem0
+	).
+fix_labels([dir(A, N)|Xs], Dic, Name, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem, Mem1) :-
+	!, P =.. [A,N],
+	( dic_get(Mem0, Name, V) ->
+	  dic_replace(Mem0, Name, [P|V], Mem)
+	; dic_lookup(Mem0, Name, [P]), Mem = Mem0
+	).
+fix_labels([X|Xs], Dic, Label0, Mem0, Mem1) := [X| ~fix_labels(Xs, Dic, Label0, Mem0, Mem1)] :- !.
 
 % Translate all instructions
+:- export(tr_insns/2).
 tr_insns([]) := [].
 tr_insns([X|Xs]) := [~tr_ins(X)| ~tr_insns(Xs)].
 
 % Translate one instruction (or label)
+tr_ins(name(N)) := name(N).
+tr_ins(dir(A, N)) := dir(A, N).
+tr_ins(dual(A, N)) := dual(A, N).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)].
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
@@ -126,8 +149,9 @@ tr_ins_(exp2(F), [A,B,C]) := R :- !, R = ~tr_exp2(F,A,B,C).
 tr_ins_(assign_exp1(F), [A]) := R :- !, R = ~tr_exp1(F,A,A).
 % B <- F(B,A) (and sometimes update flags)
 tr_ins_(assign_exp2(F), [A,B]) := R :- !, R = ~tr_exp2(F,A,B,B).
-% Substraction with borrow % TODO: Finish 
-tr_ins_(subb, [A,B]) := R :- !, E =.. [<,c1,c2], R = [(f<-E), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)]. % if c1>=c2 then (Result - 1) else Result
+% Substraction with borrow % TODO: OK?
+tr_ins_(subb, [A,B]) := R :- !, E =.. [ul,c1,c2], R = [(f<-E), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
+% if c1>=c2 then (Result - 1) else Result
 % Update flags
 tr_ins_(uflags(F), [A,B]) := R :- !,
 	tr_in([A,B],[A1,B1],R,R0),

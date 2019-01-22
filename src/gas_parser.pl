@@ -25,6 +25,7 @@
 :- use_module(library(streams)).
 :- use_module(library(write)).
 :- use_module(library(stream_utils), [get_line/2]).
+:- use_module(library(lists), [insert_last/3]).
 
 :- use_module(.(parser_aux)).
 :- use_module(.(x86_table), [fixins/3, ins/3]).
@@ -70,9 +71,11 @@ parse_line(Cs,_):- throw(syntax_error(Cs)).
 
 % ---------------------------------------------------------------------------
 
+:- export(sent/3).
 sent('#') --> empty, !.
 sent('#') --> comment, !.
-sent('#') --> directive(I), { skip_directive(I) }, !. % TODO: all directives ignored
+sent(Data) --> directive(Dir), process_directive([Dir,Data]), !.
+sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(label(Id)) --> label(Id), !.
 sent(Ins) --> instruction(Ins).
 
@@ -80,7 +83,8 @@ comment --> blanks, "#", !, ignore_rest.
 
 label(Label) --> idcodes(Cs), ":", { atom_codes(Label, Cs) }, ( comment -> [] ; [] ).
 
-directive(X) --> blanks, idcodes(Cs), { Cs = "."||_, atom_codes(X, Cs) }, ignore_rest.
+:- export(directive/3).
+directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
 
 instruction(Ins) -->
 	blanks, 
@@ -152,27 +156,42 @@ operand(X) --> reg(X), !.
 % ---------------------------------------------------------------------------
 % Directives
 
+
+% Generate a initial value
+process_directive(['.type', name(N)]) --> 
+	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
+process_directive(['.globl', name(N)]) --> 
+	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
+% TODO: Process the size on init
+process_directive(['.int', dir(init, N)]) --> blanks, num(N), ignore_rest.
+process_directive(['.long', dir(init, N)]) --> blanks, num(N), ignore_rest.
+process_directive(['.byte', dir(init, N)]) --> blanks, num(N), ignore_rest.
+% TODO: complete not only for 1
+process_directive(['.zero', dir(init, 0)]) --> blanks, num(1), ignore_rest.
+process_directive(['.size', dual(N, dir(size, S))]) --> process_size(N, S).
+process_directive(['.comm', dual(N, dir(size, S))]) --> process_size(N, S).
+process_directive(['.asciz', dir(cons, N)]) --> blanks, ascii_contents(N0),
+	{ insert_last(N0, 0, N) }, ignore_rest.
+process_directive(['.ascii', dir(cons, N)]) --> 
+	blanks, ascii_contents(N), ignore_rest.
+
+% TODO: how to process?
+process_directive(['.bss', '#']) --> ignore_rest.
+process_directive(['.data', '#']) --> ignore_rest.
+
+process_size(N, S) --> blanks, idcodes(Name), ",", blanks,
+	num(S), { atom_codes(N, Name)}, ignore_rest.
+
+% Skip
 skip_directive('.XMM').
 skip_directive('.686P').
 skip_directive('.file').
 skip_directive('.ident').
 skip_directive('.section').
 skip_directive('.space').
-skip_directive('.comm').
-skip_directive('.data').
-skip_directive('.text').
-skip_directive('.globl').
-skip_directive('.type').
-skip_directive('.size').
-skip_directive('.asciz').
-skip_directive('.ascii').
 skip_directive('.align').
 skip_directive('.cfi_restore').
 skip_directive('.quad').
-skip_directive('.long').
-skip_directive('.byte').
-skip_directive('.zero').
-skip_directive('.bss').
 skip_directive('.local').
 skip_directive('.p2align').
 skip_directive('.cfi_offset').
@@ -182,5 +201,5 @@ skip_directive('.cfi_def_cfa').
 skip_directive('.cfi_def_cfa_offset').
 skip_directive('.cfi_def_cfa_register').
 skip_directive('.model').
-
-
+skip_directive('.text').
+skip_directive('.size'). % For other cases that doesn't match the pattern
