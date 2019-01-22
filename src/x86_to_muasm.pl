@@ -224,7 +224,7 @@ tr_exp2(F,A,B,C) := R :- !,
 	; F = (+) -> X = (B1+A1), UFlags = yes
 	; F = (-) -> X = (B1-A1), UFlags = yes
 	; F = (#) -> X = (B1#A1), UFlags = yes
-	; X =.. [F,B1,A1], UFlags = no
+	; X =.. [F,B1,A1], UFlags = yes
 	),
 	( C=X, UFlags = no -> R0 = [skip]
 	; R0 = [~tr_assign(X,C,UFlags)]

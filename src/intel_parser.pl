@@ -106,8 +106,8 @@ sent('#') --> blanks, "$pdata", !, ignore_rest. % TODO: !!
 sent('#') --> blanks, "$unwind", !, ignore_rest. % TODO: !!
 sent('#') --> blanks, idcodes2(_), blanks, "ENDP", !, ignore_rest. % Each munction has a start and an end
 sent('#') --> blanks, idcodes2(_), blanks, "ENDS", !, ignore_rest. % Each munction has a start and an end
-sent(dual(Name, Data)) --> directive_labeled(Name, Dir), process_directive([Dir,Data]), !.
-sent(Data) --> directive(Dir), process_directive([Dir,Data]), !.
+sent(dual(Name, Data)) --> directive_labeled(Name, Dir), process_directive(Dir, Data), !.
+sent(Data) --> directive(Dir), process_directive(Dir, Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(const(N,V)) --> const(N,V), !.
 sent(label(Id)) --> label(Id), !.
@@ -326,20 +326,20 @@ get_id(Cs) := Id :-
 % Directives
 
 
-process_directive(['PUBLIC', name(N)]) --> 
+process_directive('PUBLIC', name(N)) --> 
 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
 % TODO: Process the size on init
-process_directive(['DD', dir(init, N)]) --> blanks, num(N), ignore_rest.
-process_directive(['DD', '#']) --> blanks, idcodes2(_), blanks, "$", ignore_rest.
-process_directive(['DB', dir(init, N)]) --> blanks, num(N), ignore_rest.
-process_directive(['DQ', dir(init, N)]) --> blanks, num(N), ignore_rest.
-process_directive(['COMM', dual(N, dir(size, S))]) --> 
+process_directive('DD', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('DD', '#') --> blanks, idcodes2(_), blanks, "$", ignore_rest.
+process_directive('DB', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('DQ', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('COMM', dual(N, dir(size, S))) --> 
 	blanks, idcodes2(Name),	{ atom_codes(N, Name) }, ":", size(Size),
 	":", num(Num), { S is Num*Size }, ignore_rest.
 
 % TODO: how to process?
-process_directive(['_DATA', '#']) --> ignore_rest.
-process_directive(['_BSS', '#']) --> ignore_rest.
+process_directive('_DATA', '#') --> ignore_rest.
+process_directive('_BSS', '#') --> ignore_rest.
 
 size(1) --> "BYTE".
 size(8) --> "DWORD". % TODO: Well done?

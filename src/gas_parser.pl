@@ -74,7 +74,7 @@ parse_line(Cs,_):- throw(syntax_error(Cs)).
 :- export(sent/3).
 sent('#') --> empty, !.
 sent('#') --> comment, !.
-sent(Data) --> directive(Dir), process_directive([Dir,Data]), !.
+sent(Data) --> directive(Dir), process_directive(Dir,Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(label(Id)) --> label(Id), !.
 sent(Ins) --> instruction(Ins).
@@ -158,26 +158,26 @@ operand(X) --> reg(X), !.
 
 
 % Generate a initial value
-process_directive(['.type', name(N)]) --> 
+process_directive('.type', name(N)) --> 
 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
-process_directive(['.globl', name(N)]) --> 
+process_directive('.globl', name(N)) --> 
 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
 % TODO: Process the size on init
-process_directive(['.int', dir(init, N)]) --> blanks, num(N), ignore_rest.
-process_directive(['.long', dir(init, N)]) --> blanks, num(N), ignore_rest.
-process_directive(['.byte', dir(init, N)]) --> blanks, num(N), ignore_rest.
+process_directive('.int', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.long', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.byte', dir(init, N)) --> blanks, num(N), ignore_rest.
 % TODO: complete not only for 1
-process_directive(['.zero', dir(init, 0)]) --> blanks, num(1), ignore_rest.
-process_directive(['.size', dual(N, dir(size, S))]) --> process_size(N, S).
-process_directive(['.comm', dual(N, dir(size, S))]) --> process_size(N, S).
-process_directive(['.asciz', dir(cons, N)]) --> blanks, ascii_contents(N0),
+process_directive('.zero', dir(init, 0)) --> blanks, num(1), ignore_rest.
+process_directive('.size', dual(N, dir(size, S))) --> process_size(N, S).
+process_directive('.comm', dual(N, dir(size, S))) --> process_size(N, S).
+process_directive('.asciz', dir(cons, N)) --> blanks, ascii_contents(N0),
 	{ insert_last(N0, 0, N) }, ignore_rest.
-process_directive(['.ascii', dir(cons, N)]) --> 
+process_directive('.ascii', dir(cons, N)) --> 
 	blanks, ascii_contents(N), ignore_rest.
 
 % TODO: how to process?
-process_directive(['.bss', '#']) --> ignore_rest.
-process_directive(['.data', '#']) --> ignore_rest.
+process_directive('.bss', '#') --> ignore_rest.
+process_directive('.data', '#') --> ignore_rest.
 
 process_size(N, S) --> blanks, idcodes(Name), ",", blanks,
 	num(S), { atom_codes(N, Name)}, ignore_rest.
