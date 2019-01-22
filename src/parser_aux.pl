@@ -29,6 +29,9 @@ digit16(X) --> [X], {X>=0'0, X=<0'9}, !.
 digit16(X) --> [X], {X>=0'a, X=<0'f}, !.
 digit16(X) --> [X], {X>=0'A, X=<0'F}.
 
+:- export(digit8/3).
+digit8(X) --> [X], {X>=0'0, X=<0'7}.
+
 :- export(alpha/3).
 alpha(X) --> [X], { X>=0'a, X=<0'z -> true ; X>=0'A,X=<0'Z -> true ; fail }. 
 
@@ -46,7 +49,9 @@ blanks --> [].
 num(X) --> "-", numcodes(Cs, Base), !, { number_codes(X1, Base, Cs), X is -X1 }.
 num(X) --> numcodes(Cs, Base), !, { number_codes(X, Base, Cs) }.
 
-numcodes([X|Cs], 16) --> "0x", digit16(X), !, numcodes_(Cs).
+numcodes([X|Cs], 16) --> digit16(X), numcodes16_(Cs), "H", !. % Intel ASM format
+numcodes([X|Cs], 16) --> "0x", digit16(X), !, numcodes16_(Cs).
+numcodes([X|Cs], 8) --> "\\", digit8(X), !, numcodes8_(Cs).
 numcodes([X|Cs], 10) --> digit(X), !, numcodes_(Cs).
 
 numcodes_([X|Cs]) --> digit(X), !, numcodes_(Cs).
@@ -54,6 +59,9 @@ numcodes_("") --> "".
 
 numcodes16_([X|Cs]) --> digit16(X), !, numcodes16_(Cs).
 numcodes16_("") --> "".
+
+numcodes8_([X|Cs]) --> digit8(X), !, numcodes16_(Cs).
+numcodes8_("") --> "".
 
 :- export(idcodes/3).
 idcodes("_"||Cs) --> "_", !, idcodes_(Cs).
@@ -79,3 +87,19 @@ offset(A+B) --> num_or_id(A), "+", !, num_or_id(B).
 offset(A-B) --> num_or_id(A), "-", !, num_or_id(B).
 offset(A) --> num_or_id(A), !.
 
+:- export(id/3).
+id(A,A,[]).
+
+% TODO: finish, naive approach
+:- export(ascii_contents/3).
+ascii_contents(R) --> "\"", ascii_contents_(R), !.
+ascii_contents_([]) --> "\"".
+ascii_contents_([C|D]) --> process_char(C), ascii_contents_(D), !.
+
+process_char(X) --> num(X), !.
+process_char(8) --> "\\b", !.
+process_char(12) --> "\\f", !.
+process_char(10) --> "\\n", !.
+process_char(13) --> "\\r", !.
+process_char(9) --> "\\t", !.
+process_char(A) --> [A].
