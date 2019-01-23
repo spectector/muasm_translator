@@ -18,7 +18,7 @@
 :- use_module(engine(messages_basic)). 
 :- use_module(library(dict)).
 :- use_module(library(llists), [flatten/2]).
-:- use_module(library(lists), [select/3]).
+:- use_module(library(lists), [append/3]).
 
 :- use_module(.(gas_parser)).
 :- use_module(.(intel_parser)).
@@ -27,39 +27,45 @@
 % (muasm syntax)
 :- op(980, xfx, [(<-)]). % priority between (::) and (,)
 
-translate_x86_to_muasm(Format, F, Dic, Mem, Masm) :-
+translate_x86_to_muasm(Format, F, Dic, Heap, Masm) :-
 	( Format = intel -> parse_file_intel(F, PrgX86)
 	; Format = gas -> parse_file_gas(F, PrgX86)
 	),
 	R = ~tr_insns(PrgX86),
 	R2 = ~flatten(R),
-	fix_labels(R2, Dic, _, _, Mem, Masm), !.
+	% TODO: Declare a non-free ariable
+	fix_labels(R2, Dic, <>, (1024, 1024, 1024), [], [], Heap, Masm), !.
+% TODO: Change intial Heap direction
 translate_x86_to_muasm(_, _, _, _, _) :-
 	throw(error(failed_to_parse, translate_x86_to_muasm/5)).
 
 % Resolve pending labels (this remove lookup_label/2 entries)
-:- export(fix_labels/6).
-fix_labels([], _, _, Mem, Mem) := [].
-fix_labels([lookup_label(Label0,Label)|Xs], Dic, Name, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem0, Mem1) :- !,
+:- export(fix_labels/8).
+fix_labels([], _, _, _, A, M, c(M,A)) := [].
+fix_labels([lookup_label(Label0,Label)|Xs], Dic, Name, H, A, M, C) :=
+	~fix_labels(Xs, Dic, Name, H, A, M, C) :- !,
 	dic_lookup(Dic, Label0, Label).
-fix_labels([name(Name)|Xs], Dic, _, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem0, Mem1) :- !.
-fix_labels([dual(Name, Data)|Xs], Dic, _, Mem0, Mem1) := ~fix_labels([Data|Xs], Dic, Name, Mem0, Mem1) :- !.
-fix_labels([dir(init, N)|Xs], Dic, Name, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem, Mem1) :-
-	!,
-	( dic_get(Mem0, Name, V) ->
-	  ( select(consR(L), V, VR) ->
-	    dic_replace(Mem0, Name, [consR([N|L])|VR], Mem)
-	  ; dic_replace(Mem0, Name, [consR([N])|V], Mem)
-	  )
-	; dic_lookup(Mem0, Name, [consR([N])]), Mem = Mem0
-	).
-fix_labels([dir(A, N)|Xs], Dic, Name, Mem0, Mem1) := ~fix_labels(Xs, Dic, Name, Mem, Mem1) :-
-	!, P =.. [A,N],
-	( dic_get(Mem0, Name, V) ->
-	  dic_replace(Mem0, Name, [P|V], Mem)
-	; dic_lookup(Mem0, Name, [P]), Mem = Mem0
-	).
-fix_labels([X|Xs], Dic, Label0, Mem0, Mem1) := [X| ~fix_labels(Xs, Dic, Label0, Mem0, Mem1)] :- !.
+fix_labels([name_dir(Name, Data)|Xs], Dic, PN, H, A, M, C) :=
+	~fix_labels([name(Name), Data|Xs], Dic, PN, H, A, M, C) :- !.
+% If processing the same variable, ignore
+fix_labels([name(Name)|Xs], Dic, Name, H, A, M, C) :=
+	~fix_labels(Xs, Dic, Name, H, A, M, C) :- !.
+fix_labels([name(Name)|Xs], Dic, _, (_H0, H1, H2), A, M, C) :=
+	~fix_labels(Xs, Dic, Name, (H, H, _), [Name=H|A], M, C) :-
+ !, ( var(H2) -> H = H1 % If size hasn't been declared
+    ; H = H2).
+% TODO: Unify all dir processing
+fix_labels([dir(init, N)|Xs], Dic, Name, (H0, H1, H2), A, M, C) :=
+	~fix_labels(Xs, Dic, Name, (H0 ,H, H2), A, [H1=N|M], C) :-
+ !, H is H1 + 1.
+fix_labels([dir(size, V)|Xs], Dic, Name, (H0, H1, _H2), A, M, C) :=
+	~fix_labels(Xs, Dic, Name, (H0, H1, H2), A, M, C) :-
+ !, H2 is H0 + V.
+fix_labels([dir(cons, Value)|Xs], Dic, Name, (H0, H1, H2), A, M0, C) :=
+	~fix_labels(Xs, Dic, Name, (H0, H, H2), A, M1, C) :-
+ !, create_memory(H1, Value, Mem, H), append(Mem, M0, M1).
+fix_labels([X|Xs], Dic, Name, H, A, M, C) :=
+	[X|~fix_labels(Xs, Dic, Name, H, A, M, C)] :- !.
 
 % Translate all instructions
 :- export(tr_insns/2).
@@ -69,7 +75,7 @@ tr_insns([X|Xs]) := [~tr_ins(X)| ~tr_insns(Xs)].
 % Translate one instruction (or label)
 tr_ins(name(N)) := name(N).
 tr_ins(dir(A, N)) := dir(A, N).
-tr_ins(dual(A, N)) := dual(A, N).
+tr_ins(name_dir(A, N)) := name_dir(A, N).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)].
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
@@ -217,14 +223,17 @@ tr_exp1(F,A,B) := R :- !,
 	R0 = [~tr_assign(X,B,UFlags)].
 
 % TODO: complete flag support! (with a parameter if needed)
-% TODO: flag bits not updated in shr (>>), shl (<<), sar (ashr), sal!
+% TODO: if sal implemented ,update flags
 tr_exp2(F,A,B,C) := R :- !,
 	tr_in([A,B],[A1,B1],R,R0),
 	( F = (*) -> X = ~simpl_mul(A1,B1), UFlags = no
 	; F = (+) -> X = (B1+A1), UFlags = yes
 	; F = (-) -> X = (B1-A1), UFlags = yes
 	; F = (#) -> X = (B1#A1), UFlags = yes
-	; X =.. [F,B1,A1], UFlags = yes
+	; F = (>>) -> X = (B1>>A1), UFlags = yes
+	; F = (<<) -> X = (B1<<A1), UFlags = yes
+	; F = (ashr) -> X = ashr(B1,A1), UFlags = yes
+	; X =.. [F,B1,A1], UFlags = no
 	),
 	( C=X, UFlags = no -> R0 = [skip]
 	; R0 = [~tr_assign(X,C,UFlags)]
@@ -350,3 +359,8 @@ contrary(=<,>).
 contrary(<,>=).
 contrary(=,\=).
 contrary(\=,=).
+
+:- export(create_memory/4).
+create_memory(H, [V|Vs], [H=V|Rs], FHeap) :-
+	H1 is H + 1, create_memory(H1, Vs, Rs, FHeap).
+create_memory(H, [], [], H).

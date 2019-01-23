@@ -106,7 +106,7 @@ sent('#') --> blanks, "$pdata", !, ignore_rest. % TODO: !!
 sent('#') --> blanks, "$unwind", !, ignore_rest. % TODO: !!
 sent('#') --> blanks, idcodes2(_), blanks, "ENDP", !, ignore_rest. % Each munction has a start and an end
 sent('#') --> blanks, idcodes2(_), blanks, "ENDS", !, ignore_rest. % Each munction has a start and an end
-sent(dual(Name, Data)) --> directive_labeled(Name, Dir), process_directive(Dir, Data), !.
+sent(name_dir(Name, Data)) --> directive_labeled(Name, Dir), process_directive(Dir, Data), !.
 sent(Data) --> directive(Dir), process_directive(Dir, Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(const(N,V)) --> const(N,V), !.
@@ -125,7 +125,6 @@ const(N,V) --> blanks, idcodes2(Cs), blanks, "=", !,
 	{ get_id(Cs, N) },
 	blanks, num(V).
 
-:- export(directive/3).
 directive(X) --> blanks, idcodes(Dir), { atom_codes(X, Dir) }, !.
 directive_labeled(Name, Dir) --> blanks, idcodes(N), { atom_codes(Name, N) }, blanks, idcodes(D), { atom_codes(Dir, D) }, !.
 
@@ -280,7 +279,6 @@ operand(addr(SignedOffset,0,0,0)) --> % TODO: not mem in "call printf"?
 operand(Z) --> idcodes2(Cs), !, { get_id(Cs, Z) }.
 
 % TODO: like idcodes/3 but for intel assembly
-:- export(idcodes2/3).
 idcodes2([X|Cs]) --> sym(X), !, idcodes2_(Cs).
 idcodes2([X|Cs]) --> alpha(X), !, idcodes2_(Cs).
 
@@ -326,14 +324,14 @@ get_id(Cs) := Id :-
 % Directives
 
 
-process_directive('PUBLIC', name(N)) --> 
-	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
+% process_directive('PUBLIC', name(N)) --> 
+% 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
 % TODO: Process the size on init
-process_directive('DD', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('DD', dir(init, N)) --> blanks, num(N), !, ignore_rest.
 process_directive('DD', '#') --> blanks, idcodes2(_), blanks, "$", ignore_rest.
 process_directive('DB', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('DQ', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('COMM', dual(N, dir(size, S))) --> 
+process_directive('COMM', name_dir(N, dir(size, S))) --> 
 	blanks, idcodes2(Name),	{ atom_codes(N, Name) }, ":", size(Size),
 	":", num(Num), { S is Num*Size }, ignore_rest.
 
@@ -345,6 +343,7 @@ size(1) --> "BYTE".
 size(8) --> "DWORD". % TODO: Well done?
 
 % Skip
+skip_directive('PUBLIC').
 skip_directive('TITLE').
 skip_directive('INCLUDELIB').
 skip_directive('ALIGN').
