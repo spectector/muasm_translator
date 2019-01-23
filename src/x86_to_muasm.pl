@@ -33,39 +33,38 @@ translate_x86_to_muasm(Format, F, Dic, Heap, Masm) :-
 	),
 	R = ~tr_insns(PrgX86),
 	R2 = ~flatten(R),
-	% TODO: Declare a non-free ariable
-	fix_labels(R2, Dic, <>, (1024, 1024, 1024), [], [], Heap, Masm), !.
+	% TODO: Declare a non-free variable as the 3rd argument
+	fix(R2, Dic, <>, (1024, 1024, 1024), c([],[]), Heap, Masm), !.
 % TODO: Change intial Heap direction
 translate_x86_to_muasm(_, _, _, _, _) :-
 	throw(error(failed_to_parse, translate_x86_to_muasm/5)).
 
+fix([], _, _, _, C, C) := [].
 % Resolve pending labels (this remove lookup_label/2 entries)
-:- export(fix_labels/8).
-fix_labels([], _, _, _, A, M, c(M,A)) := [].
-fix_labels([lookup_label(Label0,Label)|Xs], Dic, Name, H, A, M, C) :=
-	~fix_labels(Xs, Dic, Name, H, A, M, C) :- !,
+fix([lookup_label(Label0,Label)|Xs], Dic, Name, H, C0, C) :=
+	~fix(Xs, Dic, Name, H, C0, C) :- !,
 	dic_lookup(Dic, Label0, Label).
-fix_labels([name_dir(Name, Data)|Xs], Dic, PN, H, A, M, C) :=
-	~fix_labels([name(Name), Data|Xs], Dic, PN, H, A, M, C) :- !.
+fix([name_dir(Name, Data)|Xs], Dic, PN, H, C0, C) :=
+	~fix([name(Name), Data|Xs], Dic, PN, H, C0, C) :- !.
 % If processing the same variable, ignore
-fix_labels([name(Name)|Xs], Dic, Name, H, A, M, C) :=
-	~fix_labels(Xs, Dic, Name, H, A, M, C) :- !.
-fix_labels([name(Name)|Xs], Dic, _, (_H0, H1, H2), A, M, C) :=
-	~fix_labels(Xs, Dic, Name, (H, H, _), [Name=H|A], M, C) :-
+fix([name(Name)|Xs], Dic, Name, H, C0, C) :=
+	~fix(Xs, Dic, Name, H, C0, C) :- !.
+fix([name(Name)|Xs], Dic, _, (_H0, H1, H2), c(M,A), C) :=
+	~fix(Xs, Dic, Name, (H, H, _), c(M,[Name=H|A]), C) :-
  !, ( var(H2) -> H = H1 % If size hasn't been declared
     ; H = H2).
 % TODO: Unify all dir processing
-fix_labels([dir(init, N)|Xs], Dic, Name, (H0, H1, H2), A, M, C) :=
-	~fix_labels(Xs, Dic, Name, (H0 ,H, H2), A, [H1=N|M], C) :-
+fix([dir(init, N)|Xs], Dic, Name, (H0, H1, H2), c(M,A), C) :=
+	~fix(Xs, Dic, Name, (H0 ,H, H2), c([H1=N|M],A), C) :-
  !, H is H1 + 1.
-fix_labels([dir(size, V)|Xs], Dic, Name, (H0, H1, _H2), A, M, C) :=
-	~fix_labels(Xs, Dic, Name, (H0, H1, H2), A, M, C) :-
+fix([dir(size, V)|Xs], Dic, Name, (H0, H1, _H2), C0, C) :=
+	~fix(Xs, Dic, Name, (H0, H1, H2), C0, C) :-
  !, H2 is H0 + V.
-fix_labels([dir(cons, Value)|Xs], Dic, Name, (H0, H1, H2), A, M0, C) :=
-	~fix_labels(Xs, Dic, Name, (H0, H, H2), A, M1, C) :-
+fix([dir(cons, Value)|Xs], Dic, Name, (H0, H1, H2), c(M0, A), C) :=
+	~fix(Xs, Dic, Name, (H0, H, H2), c(M1, A), C) :-
  !, create_memory(H1, Value, Mem, H), append(Mem, M0, M1).
-fix_labels([X|Xs], Dic, Name, H, A, M, C) :=
-	[X|~fix_labels(Xs, Dic, Name, H, A, M, C)] :- !.
+fix([X|Xs], Dic, Name, H, C0, C) :=
+	[X|~fix(Xs, Dic, Name, H, C0, C)] :- !.
 
 % Translate all instructions
 :- export(tr_insns/2).
