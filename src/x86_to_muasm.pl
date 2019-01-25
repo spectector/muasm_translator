@@ -13,7 +13,7 @@
 % limitations under the License.
 % ===========================================================================
 
-:- module(_, [translate_x86_to_muasm/5], [assertions, dcg, fsyntax, datafacts]).
+:- module(_, [translate_x86_to_muasm/7], [assertions, dcg, fsyntax, datafacts]).
 
 :- use_module(engine(messages_basic)). 
 :- use_module(library(dict)).
@@ -27,47 +27,51 @@
 % (muasm syntax)
 :- op(980, xfx, [(<-)]). % priority between (::) and (,)
 
-translate_x86_to_muasm(Format, F, Dic, Heap, Masm) :-
+translate_x86_to_muasm(Format, F, Dic, IgnNames, HeapDir, Heap, Masm) :-
 	( Format = intel -> parse_file_intel(F, PrgX86)
 	; Format = gas -> parse_file_gas(F, PrgX86)
 	),
 	R = ~tr_insns(PrgX86),
 	R2 = ~flatten(R),
 	% TODO: Declare a non-free variable as the 3rd argument
-	fix(R2, Dic, <>, (1024, 1024, 1024), c([],[]), Heap, Masm), !.
+	fix(R2, Dic, (<>, true), IgnNames, (HeapDir, HeapDir, HeapDir), c([],[]), Heap, Masm), !.
 % TODO: Change intial Heap direction
-translate_x86_to_muasm(_, _, _, _, _) :-
-	throw(error(failed_to_parse, translate_x86_to_muasm/5)).
+translate_x86_to_muasm(_, _, _, _, _, _, _) :-
+	throw(error(failed_to_parse, translate_x86_to_muasm/7)).
 
-fix([], _, _, _, C, C) := [].
+:- export(fix/8).
+fix([], _, _, _, _, C, C) := [].
 % Resolve pending labels (this remove lookup_label/2 entries)
-fix([lookup_label(Label0,Label)|Xs], Dic, Name, H, C0, C) :=
-	~fix(Xs, Dic, Name, H, C0, C) :- !,
+fix([lookup_label(Label0,Label)|Xs], Dic, N, IgnNames, H, C0, C) :=
+	~fix(Xs, Dic, N, IgnNames, H, C0, C) :- !,
 	dic_lookup(Dic, Label0, Label).
-fix([name_dir(Name, Data)|Xs], Dic, PN, H, C0, C) :=
-	~fix([name(Name), Data|Xs], Dic, PN, H, C0, C) :- !.
+fix([name_dir(Name, Data)|Xs], Dic, N, IgnNames, H, C0, C) :=
+	~fix([name(Name), Data|Xs], Dic, N, IgnNames, H, C0, C) :- !.
 % If processing the same variable, ignore
-fix([name(Name)|Xs], Dic, Name, H, C0, C) :=
-	~fix(Xs, Dic, Name, H, C0, C) :- !.
-fix([name(Name)|Xs], Dic, _, (_H0, H1, H2), c(M,A), C) :=
-	~fix(Xs, Dic, Name, (H, H, _), c(M,[Name=H|A]), C) :-
+fix([name(Name)|Xs], Dic, (Name, Ign), IgnNames, H, C0, C) :=
+	~fix(Xs, Dic, (Name, Ign), IgnNames, H, C0, C) :- !.
+fix([name(Name)|Xs], Dic, _, IgnNames, (_H0, H1, H2), c(M,A), C) :=
+	~fix(Xs, Dic, (Name, Ign), IgnNames, (H, H, _), c(M,[Name=H|A]), C) :-
  !, ( var(H2) -> H = H1 % If size hasn't been declared
-    ; H = H2).
+    ; H = H2),
+    ( member(Name, IgnNames) -> Ign = true
+    ; Ign = false ).
 % TODO: Unify all dir processing
-fix([dir(init, N)|Xs], Dic, Name, (H0, H1, H2), c(M,A), C) :=
-	~fix(Xs, Dic, Name, (H0 ,H, H2), c([H1=N|M],A), C) :-
- !, H is H1 + 1.
-fix([dir(size, V)|Xs], Dic, Name, (H0, H1, _H2), C0, C) :=
-	~fix(Xs, Dic, Name, (H0, H1, H2), C0, C) :-
+fix([dir(init, N)|Xs], Dic, (Name, Ign), IgnNames, (H0, H1, H2), c(M,A), C) :=
+	~fix(Xs, Dic, (Name, Ign), IgnNames, (H0 ,H, H2), c(NM,A), C) :-
+ !, ( Ign = true -> H = H1, NM = M
+    ; H is H1 + 1, NM = [H1=N|M]).
+fix([dir(cons, Value)|Xs], Dic, (Name, Ign), IgnNames, (H0, H1, H2), c(M0, A), C) :=
+	~fix(Xs, Dic, (Name, Ign), IgnNames, (H0, H, H2), c(M1, A), C) :-
+ !, ( Ign = true -> H = H1, M1 = M0
+    ; create_memory(H1, Value, Mem, H), append(Mem, M0, M1)).
+fix([dir(size, V)|Xs], Dic, Name, IgnNames, (H0, H1, _H2), C0, C) :=
+	~fix(Xs, Dic, Name, IgnNames, (H0, H1, H2), C0, C) :-
  !, H2 is H0 + V.
-fix([dir(cons, Value)|Xs], Dic, Name, (H0, H1, H2), c(M0, A), C) :=
-	~fix(Xs, Dic, Name, (H0, H, H2), c(M1, A), C) :-
- !, create_memory(H1, Value, Mem, H), append(Mem, M0, M1).
-fix([X|Xs], Dic, Name, H, C0, C) :=
-	[X|~fix(Xs, Dic, Name, H, C0, C)] :- !.
+fix([X|Xs], Dic, Name, IgnNames, H, C0, C) :=
+	[X|~fix(Xs, Dic, Name, IgnNames, H, C0, C)] :- !.
 
 % Translate all instructions
-:- export(tr_insns/2).
 tr_insns([]) := [].
 tr_insns([X|Xs]) := [~tr_ins(X)| ~tr_insns(Xs)].
 

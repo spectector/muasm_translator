@@ -69,6 +69,7 @@ ins(dec, o, assign_exp1(dec)).
 ins(decl, o, assign_exp1(dec)).
 ins(decq, o, assign_exp1(dec)).
 ins(inc, o, assign_exp1(inc)).
+ins(incl, o, assign_exp1(inc)).
 ins(incq, o, assign_exp1(inc)).
 ins(cmovs, o, condmov(<)).
 ins(cmovsq, o, condmov(<)).
