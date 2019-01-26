@@ -327,13 +327,13 @@ get_id(Cs) := Id :-
 % process_directive('PUBLIC', name(N)) --> 
 % 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
 % TODO: Process the size on init
-process_directive('DD', dir(init, N)) --> blanks, num(N), !, ignore_rest.
+process_directive('DD', dir(init, N)) --> blanks, num_intel(N), !, ignore_rest.
 process_directive('DD', '#') --> blanks, idcodes2(_), blanks, "$", ignore_rest.
-process_directive('DB', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('DQ', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('DB', dir(init, N)) --> blanks, num_intel(N), ignore_rest.
+process_directive('DQ', dir(init, N)) --> blanks, num_intel(N), ignore_rest.
 process_directive('COMM', name_dir(N, dir(size, S))) --> 
 	blanks, idcodes2(Name),	{ atom_codes(N, Name) }, ":", size(Size),
-	":", num(Num), { S is Num*Size }, ignore_rest.
+	":", num_intel(Num), { S is Num*Size }, ignore_rest.
 
 % TODO: how to process?
 process_directive('_DATA', '#') --> ignore_rest.

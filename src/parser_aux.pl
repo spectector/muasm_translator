@@ -46,11 +46,14 @@ blanks --> blank, !, blanks.
 blanks --> [].
 
 :- export(num/3).
-% TODO: Change it
 num(X) --> "-", numcodes(Cs, Base), !, { number_codes(X1, Base, Cs), X is -X1 }.
 num(X) --> numcodes(Cs, Base), !, { number_codes(X, Base, Cs) }.
 
-numcodes([X|Cs], 16) --> digit16(X), numcodes16_(Cs), "H", !. % TODO: Intel ASM format
+:- export(num_intel/3).
+num_intel(X) --> num_intel_(Cs), !, { number_codes(X, 16, Cs) }.
+
+num_intel_([X|Cs]) --> digit16(X), numcodes16_(Cs), "H", !.
+
 numcodes([X|Cs], 16) --> "0x", digit16(X), !, numcodes16_(Cs).
 numcodes([X|Cs], 8) --> "0", digit8(X), !, numcodes8_(Cs).
 numcodes([X|Cs], 10) --> digit(X), !, numcodes_(Cs).
