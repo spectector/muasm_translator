@@ -233,6 +233,7 @@ tr_exp2(F,A,B,C) := R :- !,
 	; F = (+) -> X = (B1+A1), UFlags = yes
 	; F = (-) -> X = (B1-A1), UFlags = yes
 	; F = (#) -> X = (B1#A1), UFlags = yes
+	; F = (pxor) -> X = (B1#A1), UFlags = no
 	; F = (>>) -> X = (B1>>A1), UFlags = yes
 	; F = (<<) -> X = (B1<<A1), UFlags = yes
 	; F = (ashr) -> X = ashr(B1,A1), UFlags = yes

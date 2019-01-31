@@ -34,6 +34,7 @@ ins(testl, o, uflags(test)).
 ins(testq, o, uflags(test)).
 ins(idivl, o, exp2(div)).
 ins(divl, o, exp2(/)).
+ins(imulq, o, exp2(*)).
 ins(imull, o, exp2(*)).
 ins(imul, o, exp2(*)).
 ins(leaq, o, lea).
@@ -49,10 +50,13 @@ ins(subb, o, assign_exp2(-)).
 ins(subq, o, assign_exp2(-)).
 ins(neg, o, assign_exp1(neg)).
 ins(negl, o, assign_exp1(neg)).
+ins(negq, o, assign_exp1(neg)).
 ins(not, o, assign_exp1(not)).
+ins(notl, o, assign_exp1(not)).
 ins(notq, o, assign_exp1(not)).
 ins(sbb, o, subb). % TODO: add borrow from every operation
 ins(sbbq, o, subb). % TODO: add borrow from every operation
+ins(pxor, o,  assign_exp2(pxor)).
 ins(xorb, o,  assign_exp2(#)).
 ins(xorl, o,  assign_exp2(#)).
 ins(xorq, o,  assign_exp2(#)).
@@ -69,6 +73,7 @@ ins(dec, o, assign_exp1(dec)).
 ins(decl, o, assign_exp1(dec)).
 ins(decq, o, assign_exp1(dec)).
 ins(inc, o, assign_exp1(inc)).
+ins(incb, o, assign_exp1(inc)).
 ins(incl, o, assign_exp1(inc)).
 ins(incq, o, assign_exp1(inc)).
 ins(cmovs, o, condmov(<)).
@@ -78,12 +83,15 @@ ins(cmovnsq, a, condmov(>=)).
 ins(cmova, o, condmov(ug)).
 ins(cmovaq, o, condmov(ug)).
 ins(cmovaeq, o, condmov(uge)).
+ins(cmovael, o, condmov(uge)).
 ins(cmovae, o, condmov(uge)).
 ins(cmovbq, o, condmov(ul)).
 ins(cmovb, o, condmov(ul)).
 ins(cmovbeq, o, condmov(ule)).
 ins(cmovbe, o, condmov(ule)).
 ins(cmoveq, o, condmov(=)).
+ins(cmove, o, condmov(=)).
+ins(cmovne, o, condmov(\=)).
 ins(cmovneq, o, condmov(\=)).
 ins(cmovlq, o, condmov(<)).
 ins(cmovll, o, condmov(<)).
@@ -95,7 +103,9 @@ ins(mov, o, <-).
 ins(movb, o, <-).
 ins(movl, o, <-).
 ins(movq, o, <-).
+ins(movdqa, o, <-).
 ins(movsbl, o, <-).
+ins(movsbq, o, <-).
 ins(movslq, o, <-).
 ins(movzbl, o, <-).
 ins(movzx, o, <-).
@@ -115,6 +125,9 @@ ins(jg, a, branch(>)).
 ins(jge, a, branch(>=)).
 ins(seta, a, condset(ug)).
 ins(setae, a, condset(uge)).
+ins(setg, a, condset(>)).
+ins(setge, a, condset(>=)).
+ins(setle, a, condset(=<)).
 ins(setb, a, condset(ul)).
 ins(sete, a, condset(=)).
 ins(setne, a, condset(\=)).

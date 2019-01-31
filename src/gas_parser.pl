@@ -172,6 +172,8 @@ process_directive('.comm', name_dir(Name, dir(size, Size))) -->
 	process_size(Name, Size).
 process_directive('.asciz', dir(cons, String)) --> blanks, string(S0),
 	{ insert_last(S0, 0, String) }, ignore_rest.
+process_directive('.string', dir(cons, String)) --> 
+	process_directive('.asciz', dir(cons, String)).
 process_directive('.ascii', dir(cons, String)) --> 
 	blanks, string(String), ignore_rest.
 
@@ -191,6 +193,9 @@ skip_directive('.section').
 skip_directive('.space').
 skip_directive('.align').
 skip_directive('.cfi_restore').
+skip_directive('.cfi_escape').
+skip_directive('.cfi_restore_state').
+skip_directive('.cfi_remember_state').
 skip_directive('.quad').
 skip_directive('.local').
 skip_directive('.p2align').
