@@ -129,7 +129,7 @@ reg(Reg) --> "%", idcodes(Cs), { atom_codes(Reg, [0'%|Cs]) }. % TODO: register!
 % address (or "[Base+Index*Scale+Offset]" in NASM syntax).
 %
 
-operand(Label) --> numcodes16_(N), { number_codes(Label,16,N) }, !.
+operand(Label) --> numcodes16_(N), { number_codes(Label,16,N) }, blanks1, !.
 operand(addr(SignedOffset,Base,Index,Scale)) -->
 	( offset(SignedOffset) -> []
 	; { SignedOffset = 0 }
