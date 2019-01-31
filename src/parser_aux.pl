@@ -61,6 +61,7 @@ numcodes([X|Cs], 10) --> digit(X), !, numcodes_(Cs).
 numcodes_([X|Cs]) --> digit(X), !, numcodes_(Cs).
 numcodes_("") --> "".
 
+:- export(numcodes16_/3).
 numcodes16_([X|Cs]) --> digit16(X), !, numcodes16_(Cs).
 numcodes16_("") --> "".
 

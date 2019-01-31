@@ -110,6 +110,7 @@ ins(movslq, o, <-).
 ins(movzbl, o, <-).
 ins(movzx, o, <-).
 ins(movsxd, o, <-).
+ins(movdqu, o, <-).
 ins(js, a, branch(<)).
 ins(jns, a, branch(>=)).
 ins(jl, a, branch(<)).
@@ -132,6 +133,7 @@ ins(setb, a, condset(ul)).
 ins(sete, a, condset(=)).
 ins(setne, a, condset(\=)).
 ins(jmp, a, jmp).
+ins(jmpq, a, jmp).
 ins(shrq, o, assign_exp2(>>)).
 ins(shrl, o, assign_exp2(>>)).
 ins(shr, o, assign_exp2(>>)).

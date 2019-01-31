@@ -80,6 +80,7 @@ sent(Ins) --> instruction(Ins).
 
 comment --> blanks, "#", !, ignore_rest.
 
+label(Label) --> numcodes16_(N), ":", { number_codes(Label,16,N) }, ( comment -> [] ; [] ).
 label(Label) --> idcodes(Cs), ":", { atom_codes(Label, Cs) }, ( comment -> [] ; [] ).
 
 directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
@@ -128,6 +129,7 @@ reg(Reg) --> "%", idcodes(Cs), { atom_codes(Reg, [0'%|Cs]) }. % TODO: register!
 % address (or "[Base+Index*Scale+Offset]" in NASM syntax).
 %
 
+operand(Label) --> numcodes16_(N), { number_codes(Label,16,N) }, !.
 operand(addr(SignedOffset,Base,Index,Scale)) -->
 	( offset(SignedOffset) -> []
 	; { SignedOffset = 0 }
