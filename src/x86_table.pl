@@ -24,93 +24,49 @@
 ins(lfence, o, spbarr).
 ins(leave, o, leave).
 ins(clflush, o, clflush).
-ins(cmpl, o, uflags(compare)).
-ins(cmpq, o, uflags(compare)).
-ins(cmpb, o, uflags(compare)).
 ins(cmp, o, uflags(compare)).
+ins(comiss, o, uflags(compare)). % TODO: Well done?
+ins(ucomiss, o, uflags(compare)). % TODO: Well done?
 ins(test, o, uflags(test)).
-ins(testb, o, uflags(test)).
-ins(testl, o, uflags(test)).
-ins(testq, o, uflags(test)).
-ins(idivl, o, exp2(div)).
-ins(divl, o, exp2(/)).
-ins(imulq, o, exp2(*)).
-ins(imull, o, exp2(*)).
+ins(idiv, o, assign_exp1(div)). % TODO: Because the definition it's only applied to 1 operand, the source will be in rax register
+ins(div, o, assign_exp1(/)).
+ins(mul, o, assign_exp1(mul)).
 ins(imul, o, exp2(*)).
-ins(leaq, o, lea).
-ins(leal, o, lea).
 ins(lea, o, lea).
-ins(addl, o, assign_exp2(+)).
-ins(addq, o, assign_exp2(+)).
-ins(addb, o, assign_exp2(+)).
 ins(add, o, assign_exp2(+)).
 ins(sub, o, assign_exp2(-)).
-ins(subl, o, assign_exp2(-)).
-ins(subb, o, assign_exp2(-)).
-ins(subq, o, assign_exp2(-)).
 ins(neg, o, assign_exp1(neg)).
-ins(negl, o, assign_exp1(neg)).
-ins(negq, o, assign_exp1(neg)).
 ins(not, o, assign_exp1(not)).
-ins(notl, o, assign_exp1(not)).
-ins(notq, o, assign_exp1(not)).
 ins(sbb, o, subb). % TODO: add borrow from every operation
-ins(sbbq, o, subb). % TODO: add borrow from every operation
 ins(pxor, o,  assign_exp2(pxor)).
-ins(xorb, o,  assign_exp2(#)).
-ins(xorl, o,  assign_exp2(#)).
-ins(xorq, o,  assign_exp2(#)).
 ins(xor, o,  assign_exp2(#)).
-ins(andl, o, assign_exp2(/\)).
-ins(andb, o, assign_exp2(/\)).
-ins(andq, o, assign_exp2(/\)).
 ins(and, o, assign_exp2(/\)).
+ins(andps, o, assign_exp2(/\)). % TODO: and of packed single-precision floating-point values
 ins(or, o, assign_exp2(\/)).
-ins(orb, o, assign_exp2(\/)).
-ins(orl, o, assign_exp2(\/)).
-ins(orq, o, assign_exp2(\/)).
 ins(dec, o, assign_exp1(dec)).
-ins(decl, o, assign_exp1(dec)).
-ins(decq, o, assign_exp1(dec)).
 ins(inc, o, assign_exp1(inc)).
-ins(incb, o, assign_exp1(inc)).
-ins(incl, o, assign_exp1(inc)).
-ins(incq, o, assign_exp1(inc)).
 ins(cmovs, o, condmov(<)).
-ins(cmovsq, o, condmov(<)).
 ins(cmovns, a, condmov(>=)).
-ins(cmovnsq, a, condmov(>=)).
 ins(cmova, o, condmov(ug)).
-ins(cmovaq, o, condmov(ug)).
-ins(cmovaeq, o, condmov(uge)).
-ins(cmovael, o, condmov(uge)).
 ins(cmovae, o, condmov(uge)).
-ins(cmovbq, o, condmov(ul)).
 ins(cmovb, o, condmov(ul)).
-ins(cmovbeq, o, condmov(ule)).
 ins(cmovbe, o, condmov(ule)).
-ins(cmoveq, o, condmov(=)).
 ins(cmove, o, condmov(=)).
 ins(cmovne, o, condmov(\=)).
-ins(cmovneq, o, condmov(\=)).
-ins(cmovlq, o, condmov(<)).
-ins(cmovll, o, condmov(<)).
-ins(cmovleq, o, condmov(=<)).
-ins(cmovgq, o, condmov(>)).
-ins(cmovgeq, o, condmov(>=)).
-ins(movabsq, o, <-).
+ins(cmovl, o, condmov(<)).
+ins(cmovle, o, condmov(=<)).
+ins(cmovg, o, condmov(>)).
+ins(cmovge, o, condmov(>=)).
 ins(mov, o, <-).
-ins(movb, o, <-).
-ins(movl, o, <-).
-ins(movq, o, <-).
-ins(movdqa, o, <-).
-ins(movsbl, o, <-).
-ins(movsbq, o, <-).
-ins(movslq, o, <-).
-ins(movzbl, o, <-).
-ins(movzx, o, <-).
-ins(movsxd, o, <-).
-ins(movdqu, o, <-).
+ins(movabs, o, <-).
+ins(movups, o, <-). % TODO: Move Unaligned Packed Single-Precision Floating- Point Values
+ins(movz, o, <-). % TODO: zero extension
+ins(movzx, o, <-). % TODO: zero extension
+ins(movs, o, <-). % TODO: Sign extension
+ins(movsxd, o, <-). % TODO: sign-extension
+ins(stmxcsr, o, st_flags). % TODO: like (<-) with eflags
+ins(ldmxcsr, o, st_flags). % TODO: like (<-) with eflags
+% TODO: jp
 ins(js, a, branch(<)).
 ins(jns, a, branch(>=)).
 ins(jl, a, branch(<)).
@@ -124,41 +80,35 @@ ins(jb, a, branch(ul)).
 ins(jbe, a, branch(ule)).
 ins(jg, a, branch(>)).
 ins(jge, a, branch(>=)).
+ins(setl, a, condset(<)).
 ins(seta, a, condset(ug)).
 ins(setae, a, condset(uge)).
 ins(setg, a, condset(>)).
 ins(setge, a, condset(>=)).
 ins(setle, a, condset(=<)).
 ins(setb, a, condset(ul)).
+ins(setbe, a, condset(ule)).
 ins(sete, a, condset(=)).
 ins(setne, a, condset(\=)).
 ins(jmp, a, jmp).
-ins(jmpq, a, jmp).
-ins(shrq, o, assign_exp2(>>)).
-ins(shrl, o, assign_exp2(>>)).
+% TODO: ins(ror, o, assign_exp2(ror)).
 ins(shr, o, assign_exp2(>>)).
-ins(shll, o, assign_exp2(<<)).
 ins(shl, o, assign_exp2(<<)).
-ins(shlq, o, assign_exp2(<<)).
-ins(sarq, o, assign_exp2(ashr)).
-ins(sall, o, assign_exp2(<<)). % TODO: fix?
-ins(salq, o, assign_exp2(<<)). % TODO: fix?
-ins(cltd, o, clt).
+ins(sar, o, assign_exp2(ashr)).
+ins(sal, o, assign_exp2(<<)). % TODO: fix?
+ins(cltd, o, clt). % TODO: Introduce functionality
+ins(cwtl, o, clt).
 ins(cltq, o, clt).
 ins(cdqe, o, clt).
-ins(cqto, o, clt). % TODO: Introduce functionality
-ins(pushq, o, push).
+ins(cqto, o, clt).
 ins(push, o, push).
-ins(pushl, o, push).
-ins(popq, o, pop).
 ins(pop, o, pop).
-ins(callq, a, call).
 ins(call, a, call).
-ins(retq, o, ret).
 ins(ret, o, ret).
+ins(ud2, o, exception). % TODO: Include in the semantics
 ins(rdtsc, o, skip).
 ins(nop, o, skip).
-ins(npad, o, skip). % TODO: The operator matters?
+ins(npad, o, skip). % TODO: Introduce several skips
 
 % TODO: I am not sure about this, change parsing mode for operands instead? (see grammar docs)
 :- export(fixins/3).

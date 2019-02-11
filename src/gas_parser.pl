@@ -72,6 +72,7 @@ parse_line(Cs,_):- throw(syntax_error(Cs)).
 % ---------------------------------------------------------------------------
 
 sent('#') --> empty, !.
+sent('#') --> blanks, !. % Only for empty lines
 sent('#') --> comment, !.
 sent(Data) --> directive(Dir), process_directive(Dir,Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
@@ -88,7 +89,7 @@ directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
 instruction(Ins) -->
 	blanks, 
 	insname(InsName1), { atom_codes(InsName,InsName1) },
-	{ ins(InsName,Fmt,_) }, 
+	{ ins(InsName,Fmt,_) },
 	( blanks1,
 	  oplist(Operands) -> []
 	; { Operands = [] }
@@ -166,8 +167,11 @@ process_directive('.globl', name(Name)) -->
 process_directive('.int', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.long', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.byte', dir(init, N)) --> blanks, num(N), ignore_rest.
-% TODO: support only ".zero 1" directives
-process_directive('.zero', dir(init, 0)) --> blanks, num(1), ignore_rest.
+process_directive('.short', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.word', dir(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.value', dir(init, N)) --> blanks, num(N), ignore_rest. % TODO: Introduce list processing
+process_directive('.zero', dir(cons, R)) --> blanks, num(N), ignore_rest,
+	{ replicate(0, N, R) }.
 process_directive('.size', name_dir(Name, dir(size, Size))) --> 
 	process_size(Name, Size).
 process_directive('.comm', name_dir(Name, dir(size, Size))) --> 
@@ -208,5 +212,12 @@ skip_directive('.cfi_def_cfa').
 skip_directive('.cfi_def_cfa_offset').
 skip_directive('.cfi_def_cfa_register').
 skip_directive('.model').
+skip_directive('.weak').
 skip_directive('.text').
 skip_directive('.size'). % For other cases that doesn't match the pattern
+skip_directive('.addrsig').
+skip_directive('.addrsig_sym').
+
+% TODO: In another file?
+replicate(_X,0,[]) :- !.
+replicate(X,N,[X|R]) :- N > 0, N1 is N - 1, replicate(X,N1,R).
