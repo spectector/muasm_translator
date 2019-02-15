@@ -89,9 +89,10 @@ num_or_id(Off) --> num(Off), !.
 num_or_id(Off) --> idcodes(Off0), !, { atom_codes(Off, Off0) }.
 
 :- export(insname/3). % TODO: Remove ambiguity if there's a way (i.e movs), with flags? Right now the resolution comes by the precedence in ins/3
-insname(Cs) --> insname_(Cs), suffix(_S1), suffix(_S2). % TODO: use extensions meaning
+insname([X|Cs]) --> alpha(X), insname_(Cs), suffix(_S1), suffix(_S2). % TODO: use extensions meaning
 
 insname_([X|Cs]) --> alpha(X), insname_(Cs).
+insname_([X|Cs]) --> digit(X), insname_(Cs).
 insname_("") --> "".
 
 % suffix(N) -> N means the number of bytes
@@ -101,11 +102,13 @@ suffix(1) --> "b".
 suffix(4) --> "l". % TODO: Can be also 64-bit
 suffix(2) --> "w".
 suffix(10) --> "t".
+suffix(8) --> "d". % TODO: OK?
 suffix(none) --> "".
 
 :- export(offset/3).
 offset(A+B) --> num_or_id(A), "+", !, num_or_id(B).
 offset(A-B) --> num_or_id(A), "-", !, num_or_id(B).
+offset(A*B) --> num_or_id(A), "@", !, num_or_id(B). % TODO: Don't use '*' as an operand
 offset(A) --> num_or_id(A), !.
 
 % TODO: finish, naive approach

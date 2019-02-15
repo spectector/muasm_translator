@@ -18,11 +18,11 @@
 :- use_module(engine(messages_basic)). 
 :- use_module(library(dict)).
 :- use_module(library(llists), [flatten/2]).
-:- use_module(library(lists), [append/3]).
+:- use_module(library(lists), [append/3, length/2]).
 
 :- use_module(.(gas_parser)).
 :- use_module(.(intel_parser)).
-:- use_module(.(x86_table), [ins/3]).
+:- use_module(.(x86_table), [ins/4]).
 
 % (muasm syntax)
 :- op(980, xfx, [(<-)]). % priority between (::) and (,)
@@ -78,10 +78,12 @@ tr_insns([X|Xs]) := [~tr_ins(X)| ~tr_insns(Xs)].
 tr_ins(name(N)) := name(N).
 tr_ins(dir(A, N)) := dir(A, N).
 tr_ins(name_dir(A, N)) := name_dir(A, N).
+tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)].
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
-	ins(InsName, _, InsSem), % TODO: Maybe use fmt?
+	ins(InsName, _, N, InsSem), % TODO: Maybe use fmt?
+	length(Ops, N),
 	( R = ~tr_ins_(InsSem, Ops) -> true
 	; throw(error(could_not_translate(Ins_x86), tr_ins/2))
 	).
@@ -169,19 +171,29 @@ tr_ins_(uflags(F), [A,B]) := R :- !,
 	; F = test, integer(A1) -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
 	; throw(error(unsupported_uflags(F,A,B), tr_ins_/3))
 	).
+tr_ins_(branch(parity), [Label0]) := R :- !, % TODO: Well done?
+	E =.. [=,c1,c2],
+	R = [lookup_label(Label0,Label), (c1<-'c1%2'), (f<-E), beqz(f,Label)].
 tr_ins_(branch(Cond), [Label0]) := R :- !,
 	contrary(Cond,NCond),
 	E =.. [NCond,c1,c2],
 	R = [lookup_label(Label0,Label), (f<-E), beqz(f,Label)].
 % Set A to 0 or 1 depending on condition
-tr_ins_(condset(Cond), [A]) := R :- !, % TODO: allow memory operands?
-	contrary(Cond,NCond),
-	R = [~tr_ins_(condmov(Cond), [1,A]), ~tr_ins_(condmov(NCond), [0,A])]. % TODO: Well done?
+tr_ins_(condset(Cond), [A]) := R :- !,
+	( is_addr(A) -> tr_in([A], [A1], R, R0), End = ~tr_assign(A1, A, no)
+	; R = R0, End = [], A1 = A
+	),
+	R0 = [~tr_assign(0, A1, no), ~tr_ins_(condmov(Cond), [1,A1])|End].
 % Do B<-A depending on condition
 tr_ins_(condmov(Cond), [A,B]) := R :- !, % TODO: allow memory operands?
 	tr_ops([A,B],[Av,Bv]),
 	E =.. [Cond,c1,c2],
 	R = [(f<-E), cmov(f,(Bv<-Av))].
+% TODO: st and ld flags: on same memory possition without overlapping
+% Do mem<-(c1,c2)
+tr_ins_(st_flags, [A]) := R :- !, R = [~tr_assign(c1,A,no),~tr_assign(c2,A,no)].
+% Do (c1,c2)<-mem
+tr_ins_(ld_flags, [A]) := R :- !, R = [~tr_assign(A,c1,no),~tr_assign(A,c2,no)].
 % Do B<-A
 tr_ins_('<-', [A,B]) := R :- !, R = ~tr_assign(A,B,no).
 % Push into the stack
@@ -195,8 +207,8 @@ tr_ins_(pop, [A]) := R :- !,
 % Return from call
 tr_ins_(ret, [0]) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
 tr_ins_(ret, []) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
-% Do a call
-tr_ins_(call, [A]) := R :- !, R = [~tr_ins_(push, [pc+2]), ~tr_ins_(jmp, [A])]. % TODO: fix jump
+% Do a call % TODO: Support if a register is given, by jumping to the number that it points to
+tr_ins_(call, [A]) := R :- !, R = [~tr_ins_(push, [pc+2]), ~tr_ins_(jmp, [A])].
 % Restore stack pointer from BP and pop BP
 tr_ins_(leave, []) := R :- !, R = [(sp <- bp), ~tr_ins_(pop, [bp])].
 % 
@@ -214,12 +226,17 @@ tr_ins_(jmp, [A]) := R :- !,
 	).
 
 % TODO: complete flag support! (with a parameter if needed)
+% TODO: Division!! (Include also in the semantics)
 tr_exp1(F,A,B) := R :- !,
 	tr_in([A],[A1],R,R0),
-	( F = neg -> X = -A1, UFlags = no
-	; F = not -> X = A1 # (-1), UFlags = yes
-	; F = inc -> X = A1+1, UFlags = yes
-	; F = dec -> X = A1-1, UFlags = yes
+	( F = neg  -> X = -A1, UFlags = no
+	; F = not  -> X = A1 # (-1), UFlags = yes
+	; F = inc  -> X = A1+1, UFlags = yes
+	; F = dec  -> X = A1-1, UFlags = yes
+	; F = (>>) -> X = (A1>>1), UFlags = yes
+	; F = (<<) -> X = (A1<<1), UFlags = yes
+	; F = (ashr) -> X = ashr(A1,1), UFlags = yes
+	; F = (*)  -> X = ~map_reg('%ax')*A1, UFlags = no
 	; throw(error(unsupported_exp1(F), tr_ins_/3))
 	),
 	R0 = [~tr_assign(X,B,UFlags)].
@@ -228,7 +245,9 @@ tr_exp1(F,A,B) := R :- !,
 % TODO: if sal implemented ,update flags
 tr_exp2(F,A,B,C) := R :- !,
 	tr_in([A,B],[A1,B1],R,R0),
-	( F = (*) -> X = ~simpl_mul(A1,B1), UFlags = no
+	( F = (*) -> ( X = ~simpl_mul(A1,B1)
+		     ; X = (B1*A1)
+		     ), UFlags = no
 	; F = (+) -> X = (B1+A1), UFlags = yes
 	; F = (-) -> X = (B1-A1), UFlags = yes
 	; F = (#) -> X = (B1#A1), UFlags = yes
@@ -318,6 +337,7 @@ map_reg('%dl',dx).
 map_reg('%rsi',si).
 map_reg('%esi',si).
 map_reg('%sil',si).
+map_reg('%si',si).
 map_reg('%rsp',sp).
 map_reg('%esp',sp).
 map_reg('%rbp',bp).
@@ -325,6 +345,7 @@ map_reg('%ebp',bp).
 map_reg('%rdi',di).
 map_reg('%edi',di).
 map_reg('%dil',di).
+map_reg('%di',di).
 map_reg('%rip',0). % TODO: approximation for PIC code (which is fine before symbols are relocated but it may not for linked files)
 map_reg('%r8',r8).
 map_reg('%r8d',r8).
@@ -363,7 +384,6 @@ contrary(<,>=).
 contrary(=,\=).
 contrary(\=,=).
 
-:- export(create_memory/4).
 create_memory(H, [V|Vs], [H=V|Rs], FHeap) :-
 	H1 is H + 1, create_memory(H1, Vs, Rs, FHeap).
 create_memory(H, [], [], H).

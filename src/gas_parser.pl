@@ -25,10 +25,10 @@
 :- use_module(library(streams)).
 :- use_module(library(write)).
 :- use_module(library(stream_utils), [get_line/2]).
-:- use_module(library(lists), [insert_last/3]).
+:- use_module(library(lists), [insert_last/3, length/2]).
 
 :- use_module(.(parser_aux)).
-:- use_module(.(x86_table), [fixins/3, ins/3]).
+:- use_module(.(x86_table), [fixins/3, ins/4]).
 
 % % (for testing)
 % :- export(main/1).
@@ -77,6 +77,7 @@ sent('#') --> comment, !.
 sent(Data) --> directive(Dir), process_directive(Dir,Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(label(Id)) --> label(Id), !.
+sent(label_ins(Id,Ins)) --> label(Id), blanks, instruction(Ins), !.
 sent(Ins) --> instruction(Ins).
 
 comment --> blanks, "#", !, ignore_rest.
@@ -88,8 +89,8 @@ directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
 
 instruction(Ins) -->
 	blanks, 
-	insname(InsName1), { atom_codes(InsName,InsName1) },
-	{ ins(InsName,Fmt,_) },
+	insname(InsName1), { atom_codes(InsName, InsName1) },
+	{ ins(InsName, Fmt, N,_) },
 	( blanks1,
 	  oplist(Operands) -> []
 	; { Operands = [] }
@@ -98,6 +99,7 @@ instruction(Ins) -->
 	; "#" -> ignore_rest
 	; []
 	),
+	{ length(Operands, N) },
 	{ fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
 	{ Ins =.. [InsName|Operands2] }.
 
@@ -130,8 +132,18 @@ reg(Reg) --> "%", idcodes(Cs), { atom_codes(Reg, [0'%|Cs]) }. % TODO: register!
 % address (or "[Base+Index*Scale+Offset]" in NASM syntax).
 %
 
-operand(Label) --> numcodes16_(N), { number_codes(Label,16,N) }, blanks1, !.
+operand(Label) --> numcodes16_(N), { number_codes(Label,16,N) }, blanks1, !. % TODO: Use a flag for determine if there can be numeric labels
+operand(addr(0,Base,Index,1)) --> % TODO: Well done? (i.e %fs:40)
+	reg(Base), ":",
+	( reg(Index) -> []
+	; num(Index)
+	),
+	!.
+% TODO: Jump to number of instruction defined by the register
+% TODO: numeric positions of instructions as in x86
+operand(addr(0,Base,0,1)) --> "*", reg(Base).
 operand(addr(SignedOffset,Base,Index,Scale)) -->
+	( "*" ; [] ),
 	( offset(SignedOffset) -> []
 	; { SignedOffset = 0 }
 	),
@@ -164,6 +176,7 @@ process_directive('.type', name(Name)) -->
 process_directive('.globl', name(Name)) --> 
 	blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
 % TODO: Process the size on init
+% TODO: process substractions i.e: ".long   .LBB1_3-.LJTI1_0"
 process_directive('.int', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.long', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.byte', dir(init, N)) --> blanks, num(N), ignore_rest.

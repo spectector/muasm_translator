@@ -29,7 +29,7 @@
 :- use_module(library(dict)).
 
 :- use_module(.(parser_aux)).
-:- use_module(.(x86_table), [fixins/3, ins/3]).
+:- use_module(.(x86_table), [fixins/3, ins/4]).
 
 % % (for testing)
 % :- export(main/1).
@@ -98,7 +98,6 @@ replace_const_xs([X|Xs], Dic) := [~replace_const(X, Dic)| ~replace_const_xs(Xs, 
 
 % ---------------------------------------------------------------------------
 
-:- export(sent/3).
 sent('#') --> empty, !.
 sent('#') --> comment, !.
 sent('#') --> blanks, "?", !, ignore_rest. % TODO: !!
@@ -130,8 +129,8 @@ directive_labeled(Name, Dir) --> blanks, idcodes(N), { atom_codes(Name, N) }, bl
 
 instruction(Ins) -->
 	blanks, 
-	insname(InsName1), { atom_codes(InsName,InsName1) },
-	{ ins(InsName,Fmt,_) }, 
+	insname(InsName1), { atom_codes(InsName, InsName1) },
+	{ ins(InsName, Fmt, N, _) }, % TODO: insert number of operands coherency
 	( blanks1,
 	  oplist(Operands) -> []
 	; { Operands = [] }
@@ -140,7 +139,8 @@ instruction(Ins) -->
 	; "#" -> ignore_rest
 	; []
 	),
-	{ reverse(Operands,IntelOperands),
+	{ length(Operands, N),
+	  reverse(Operands,IntelOperands),
 	  fixins(Fmt, IntelOperands, Operands2),
 	  Ins =.. [InsName|Operands2] }.
 
