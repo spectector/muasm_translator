@@ -80,6 +80,7 @@ tr_ins(dir(A, N)) := dir(A, N).
 tr_ins(name_dir(A, N)) := name_dir(A, N).
 tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)].
+tr_ins(Unknown_Ins) := Unknown_Ins :- Unknown_Ins =.. [unknown|_], !. % TODO: Finish on semantics
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
 	ins(InsName, _, N, InsSem), % TODO: Maybe use fmt?
@@ -169,6 +170,7 @@ tr_ins_(uflags(F), [A,B]) := R :- !,
 	( F = compare -> R0 = [~uflags(B1,A1)]
 	; F = test, A1=B1 -> R0 = [~uflags(A1,0)] % TODO: OK?
 	; F = test, integer(A1) -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
+	; F = test -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
 	; throw(error(unsupported_uflags(F,A,B), tr_ins_/3))
 	).
 tr_ins_(branch(parity), [Label0]) := R :- !, % TODO: Well done?

@@ -29,6 +29,7 @@
 
 :- use_module(.(parser_aux)).
 :- use_module(.(x86_table), [fixins/3, ins/4]).
+:- use_module(spectector(spectector_flags), [ignore_unknown_instructions/0]).
 
 % % (for testing)
 % :- export(main/1).
@@ -76,21 +77,23 @@ sent('#') --> blanks, !. % Only for empty lines
 sent('#') --> comment, !.
 sent(Data) --> directive(Dir), process_directive(Dir,Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
-sent(label(Id)) --> label(Id), !.
-sent(label_ins(Id,Ins)) --> label(Id), blanks, instruction(Ins), !.
+sent(label(Id)) --> blanks, label(Id), !.
+sent(label_ins(Id,Ins)) --> blanks, label(Id), blanks, instruction(Ins), !.
 sent(Ins) --> instruction(Ins).
 
 comment --> blanks, "#", !, ignore_rest.
+%comment --> blanks, ";", !, ignore_rest. % TODO: Correctness
 
-label(Label) --> numcodes16_(N), ":", { number_codes(Label,16,N) }, ( comment -> [] ; [] ).
-label(Label) --> idcodes(Cs), ":", { atom_codes(Label, Cs) }, ( comment -> [] ; [] ).
+label(Label) --> numcodes16_(N), ":", { number_codes(Label,16,N) }, blanks, ( comment -> [] ; [] ).
+label(Label) --> idcodes(Cs), ":", { atom_codes(Label, Cs) }, blanks, ( comment -> [] ; [] ).
 
 directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
 
+instruction(Ins) --> blanks, "lock;", instruction(Ins). % TODO: Maybe parse lock?
 instruction(Ins) -->
 	blanks, 
-	insname(InsName1), { atom_codes(InsName, InsName1) },
-	{ ins(InsName, Fmt, N,_) },
+	insname(InsName1),
+	{ atom_codes(InsName, InsName1), ins(InsName, Fmt, N, _) },
 	( blanks1,
 	  oplist(Operands) -> []
 	; { Operands = [] }
@@ -102,6 +105,8 @@ instruction(Ins) -->
 	{ length(Operands, N) },
 	{ fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
 	{ Ins =.. [InsName|Operands2] }.
+instruction(unknown(Ins), Str, []) :- ignore_unknown_instructions,
+	atom_codes(Ins, Str).
 
 oplist(Ops)-->
 	operand(Op),
@@ -220,14 +225,28 @@ skip_directive('.local').
 skip_directive('.p2align').
 skip_directive('.cfi_offset').
 skip_directive('.cfi_startproc').
+skip_directive('.cfi_sections').
 skip_directive('.cfi_endproc').
 skip_directive('.cfi_def_cfa').
 skip_directive('.cfi_def_cfa_offset').
 skip_directive('.cfi_def_cfa_register').
+skip_directive('.uleb128'). % TODO: Generate number unsigned
+skip_directive('.sleb128'). % TODO: Generate signed number
+skip_directive('.include').
+skip_directive('.hidden').
+skip_directive('.previous').
+skip_directive('.balign').
+skip_directive('.pushsection').
+skip_directive('.popsection').
+skip_directive('.equ').
+skip_directive('.loc').
 skip_directive('.model').
 skip_directive('.weak').
 skip_directive('.text').
+skip_directive('.if').
+skip_directive('.endif').
 skip_directive('.size'). % For other cases that doesn't match the pattern
+skip_directive('.long'). % For other cases that doesn't match the pattern
 skip_directive('.addrsig').
 skip_directive('.addrsig_sym').
 

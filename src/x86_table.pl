@@ -22,23 +22,27 @@
 % ins(X86InsName, FormatMasm, SemanticsMasm)
 :- export(ins/4).
 ins(lfence, o, 0, spbarr).
+ins(mfence, o, 0, spbarr). % TODO: Different memory fence ?
+ins(sfence, o, 0, spbarr). % TODO: Different store fence  ?
 ins(leave, o, 0, leave).
 ins(clflush, o, 0, clflush).
-% TODO: ins(bt, o, ???). % Set the carry flag to the select bit (2 operands)
+% ins(bt, o, 2, skip). % TODO: Set the carry flag to the select bit (2 operands)
 ins(cmp, o, 2, uflags(compare)).
+% ins(cmpxchg, o, 2, uflags(compare_exchange)). % TODO: Compare AL with register given and do exchange
 ins(comis, o, 2, uflags(compare)). % TODO: Well done?
 ins(ucomis, o, 2, uflags(compare)). % TODO: Well done?
 ins(test, o, 2, uflags(test)).
 ins(idiv, o, 1, assign_exp1(div)). % TODO: Because the definition it's only applied to 1 operand, the source will be in rax register
 ins(div, o, 1, assign_exp1(/)).
 ins(div, o, 1, exp1(/)).
-ins(mul, o, 1, assign_exp1(mul)).
+ins(mul, o, 1, assign_exp1(*)). % TODO: Do unsigned?
 ins(mulsd, o, 2, assign_exp2(*)).
-ins(imul, o, 1, assign_exp1(*)).
+ins(imul, o, 1, assign_exp1(*)). % TODO: Do signed?
 ins(imul, o, 2, assign_exp2(*)).
 ins(imul, o, 3, exp2(*)).
 ins(lea, o, 2, lea).
 ins(add, o, 2, assign_exp2(+)).
+ins(adc, o, 2, assign_exp2(+)). % TODO: Add carry
 ins(padd, o, 2, assign_exp2(+)).
 ins(sub, o, 2, assign_exp2(-)).
 ins(neg, o, 1, assign_exp1(neg)).
@@ -59,6 +63,7 @@ ins(cmovs, o, 2, condmov(<)).
 ins(cmovns, a, 2, condmov(>=)).
 ins(cmova, o, 2, condmov(ug)).
 ins(cmovae, o, 2, condmov(uge)).
+ins(cmovnb, o, 2, condmov(uge)).
 ins(cmovb, o, 2, condmov(ul)).
 ins(cmovbe, o, 2, condmov(ule)).
 ins(cmove, o, 2, condmov(=)).
@@ -104,6 +109,8 @@ ins(jb, a, 1, branch(ul)).
 ins(jbe, a, 1, branch(ule)).
 ins(jg, a, 1, branch(>)).
 ins(jge, a, 1, branch(>=)).
+% ins(jc, a, 1, branch(>)). % TODO: If carry
+% ins(jnc, a, 1, branch(=<)). % TODO: If carry
 ins(setl, a, 1, condset(<)).
 ins(seta, a, 1, condset(ug)).
 ins(setae, a, 1, condset(uge)).
@@ -115,13 +122,36 @@ ins(setnb, a, 1, condset(uge)).
 ins(setbe, a, 1, condset(ule)).
 ins(sete, a, 1, condset(=)).
 ins(setne, a, 1, condset(\=)).
+ins(setc, a, 1, condset(>)). % TODO: If carry
 ins(jmp, a, 1, jmp).
 % TODO: ins(bswap) -> Using an additional register
 % TODO: ins(maxsd) -> Maybe a condmov with greter as condition?
 % TODO: ins(ror, o, 2, assign_exp2(ror)).
+% ins(rdmsr, o, 0, skip). % TODO: Add instruction
+% ins(wrmsr, o, 0, skip). % TODO: Add instruction
+% ins(wbinvd, o, 0, skip). % TODO: Add instruction
+% ins(cpuid, o, 0, skip). % TODO: Add instruction
+% ins(cli, o, 0, skip). % TODO: Add instruction
+% ins(hlt, o, 0, skip). % TODO: Add instruction
+% ins(pushf, o, 0, skip). % TODO: Add instruction
+% ins(popf, o, 0, skip). % TODO: Add instruction
+% ins(lgdt, o, 1, skip). % TODO: Add instruction
+% ins(lret, o, 1, skip). % TODO: Add instruction
+% ins(xchg, o, 2, skip). % TODO: Add instruction
+% ins(repz, o, 1, skip). % TODO: Add instruction
+% ins(in, o, 2, skip). % TODO: Add instruction
+% ins(sti, o, 0, skip). % TODO: Add instruction
+% ins(bsr, o, 2, skip). % TODO: Add instruction
+% ins(wrfsbase, o, 1, skip). % TODO: Add instruction
+% ins(prefetcht0, o, 1, skip). % TODO: Add instruction
+% ins(put, o, 1, skip). % TODO: Add instruction
+% ins(btr, o, 2, skip). % TODO: Add instruction
+% ins(swapgs, o, 1, skip). % TODO: Add instruction
+% ins(out, o, 2, skip). % TODO: Add instruction
 ins(shr, o, 2, assign_exp2(>>)).
 ins(shr, o, 1, assign_exp1(>>)).
 ins(shl, o, 2, assign_exp2(<<)).
+ins(shld, o, 3, assign_exp2(<<)).
 ins(pslld, o, 2, assign_exp2(<<)).
 ins(sar, o, 2, assign_exp2(ashr)).
 ins(sar, o, 1, assign_exp1(ashr)).
@@ -139,10 +169,11 @@ ins(pop, o, 1, pop).
 ins(call, a, 1, call).
 ins(ret, o, 0, ret).
 ins(ret, o, 1, ret). % TODO: Pop the number of bytes (argument) from stack!!
-ins('rep mov', o, _, rep_mov). % TODO: modifying the rcx register -> Load (E)CX bytes from DS:[(E)SI] to AL.
-ins('rep', o, _, rep). % TODO: modifying the rcx register -> Load (E)CX bytes from DS:[(E)SI] to AL.
-ins(ud2, o, _, exception). % TODO: Include in the semantics
-ins(rdtsc, o, _, skip).
+% ins('rep mov', o, _, skip). % TODO: repeat ins?? modifying the rcx register -> Load (E)CX bytes from DS:[(E)SI] to AL.
+% ins('rep', o, _, skip). % TODO: repeat?? modifying the rcx register -> Load (E)CX bytes from DS:[(E)SI] to AL.
+% ins(repnz, o, 1, skip). % TODO: Add instruction
+% ins(ud2, o, _, skip). % TODO: Include in the semantics the exception
+% ins(rdtsc, o, _, skip). % TODO: Add instruction
 ins(nop, o, _, skip).
 ins(npad, o, _, skip). % TODO: Introduce several skips
 
