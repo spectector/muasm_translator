@@ -151,7 +151,7 @@ ins(xchg, o, 2, xchg). % TODO: Add instruction
 ins(shr, o, 2, assign_exp2(>>)).
 ins(shr, o, 1, assign_exp1(>>)).
 ins(shl, o, 2, assign_exp2(<<)).
-ins(shld, o, 3, assign_exp2(<<)).
+% TODO: % ins(shld, o, 3, exp2(<<)).
 ins(pslld, o, 2, assign_exp2(<<)).
 ins(sar, o, 2, assign_exp2(ashr)).
 ins(sar, o, 1, assign_exp1(ashr)).
