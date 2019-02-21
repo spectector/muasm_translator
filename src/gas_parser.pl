@@ -176,12 +176,12 @@ operand(X) --> reg(X), !.
 
 
 % Generate a initial value
-process_directive('.type', name(Name)) --> 
+process_directive('.type', name(Name)) -->
 	blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
-process_directive('.globl', name(Name)) --> 
+process_directive('.globl', name(Name)) -->
 	blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
 % TODO: Process the size on init
-% TODO: process substractions i.e: ".long   .LBB1_3-.LJTI1_0"
+% TODO: process operations i.e: ".long   .LBB1_3-.LJTI1_0"
 process_directive('.int', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.long', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.byte', dir(init, N)) --> blanks, num(N), ignore_rest.
@@ -190,15 +190,16 @@ process_directive('.word', dir(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.value', dir(init, N)) --> blanks, num(N), ignore_rest. % TODO: Introduce list processing
 process_directive('.zero', dir(cons, R)) --> blanks, num(N), ignore_rest,
 	{ replicate(0, N, R) }.
-process_directive('.size', name_dir(Name, dir(size, Size))) --> 
+process_directive('.size', name_dir(Name, dir(size, Size))) -->
 	process_size(Name, Size).
-process_directive('.comm', name_dir(Name, dir(size, Size))) --> 
+process_directive('.comm', name_dir(Name, dir(size, Size))) -->
 	process_size(Name, Size).
-process_directive('.asciz', dir(cons, String)) --> blanks, string(S0),
+process_directive('.asciz', dir(cons, String)) -->
+	process_directive('.ascii', dir(cons, S0)),
 	{ insert_last(S0, 0, String) }, ignore_rest.
-process_directive('.string', dir(cons, String)) --> 
+process_directive('.string', dir(cons, String)) -->
 	process_directive('.asciz', dir(cons, String)).
-process_directive('.ascii', dir(cons, String)) --> 
+process_directive('.ascii', dir(cons, String)) -->
 	blanks, string(String), ignore_rest.
 
 % TODO: how to process?
@@ -209,20 +210,17 @@ process_size(Name, Size) --> blanks, idcodes(Cs), ",", blanks,
 	num(Size), { atom_codes(Name, Cs)}, ignore_rest.
 
 % Skip
-skip_directive('.XMM').
-skip_directive('.686P').
 skip_directive('.file').
 skip_directive('.ident').
 skip_directive('.section').
 skip_directive('.space').
 skip_directive('.align').
+skip_directive('.p2align').
+skip_directive('.balign').
 skip_directive('.cfi_restore').
 skip_directive('.cfi_escape').
 skip_directive('.cfi_restore_state').
 skip_directive('.cfi_remember_state').
-skip_directive('.quad').
-skip_directive('.local').
-skip_directive('.p2align').
 skip_directive('.cfi_offset').
 skip_directive('.cfi_startproc').
 skip_directive('.cfi_sections').
@@ -230,12 +228,13 @@ skip_directive('.cfi_endproc').
 skip_directive('.cfi_def_cfa').
 skip_directive('.cfi_def_cfa_offset').
 skip_directive('.cfi_def_cfa_register').
+skip_directive('.quad').
+skip_directive('.local').
 skip_directive('.uleb128'). % TODO: Generate number unsigned
 skip_directive('.sleb128'). % TODO: Generate signed number
 skip_directive('.include').
 skip_directive('.hidden').
 skip_directive('.previous').
-skip_directive('.balign').
 skip_directive('.pushsection').
 skip_directive('.popsection').
 skip_directive('.equ').
@@ -243,6 +242,7 @@ skip_directive('.loc').
 skip_directive('.model').
 skip_directive('.weak').
 skip_directive('.text').
+% Always consider true the expression, so all the declared asembly will be generated
 skip_directive('.if').
 skip_directive('.endif').
 skip_directive('.size'). % For other cases that doesn't match the pattern

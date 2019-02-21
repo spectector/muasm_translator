@@ -32,10 +32,10 @@ ins(cmp, o, 2, uflags(compare)).
 ins(comis, o, 2, uflags(compare)). % TODO: Well done?
 ins(ucomis, o, 2, uflags(compare)). % TODO: Well done?
 ins(test, o, 2, uflags(test)).
-ins(idiv, o, 1, assign_exp1(div)). % TODO: Because the definition it's only applied to 1 operand, the source will be in rax register
-ins(div, o, 1, assign_exp1(/)).
-ins(div, o, 1, exp1(/)).
-ins(mul, o, 1, assign_exp1(*)). % TODO: Do unsigned?
+%ins(idiv, o, 1, assign_exp1(div)). % TODO: Because the definition it's only applied to 1 operand, the source will be in rax register
+%ins(div, o, 1, exp1_to(/, '%ax')).
+%ins(div, o, 1, assign_exp2(/)). % TODO: Add suffix
+ins(mul, o, 1, exp1_to(*, '%ax')). % TODO: Do unsigned?
 ins(mulsd, o, 2, assign_exp2(*)).
 ins(imul, o, 1, assign_exp1(*)). % TODO: Do signed?
 ins(imul, o, 2, assign_exp2(*)).
@@ -124,6 +124,7 @@ ins(sete, a, 1, condset(=)).
 ins(setne, a, 1, condset(\=)).
 ins(setc, a, 1, condset(>)). % TODO: If carry
 ins(jmp, a, 1, jmp).
+ins(xchg, o, 2, xchg). % TODO: Add instruction
 % TODO: ins(bswap) -> Using an additional register
 % TODO: ins(maxsd) -> Maybe a condmov with greter as condition?
 % TODO: ins(ror, o, 2, assign_exp2(ror)).
@@ -137,7 +138,6 @@ ins(jmp, a, 1, jmp).
 % ins(popf, o, 0, skip). % TODO: Add instruction
 % ins(lgdt, o, 1, skip). % TODO: Add instruction
 % ins(lret, o, 1, skip). % TODO: Add instruction
-% ins(xchg, o, 2, skip). % TODO: Add instruction
 % ins(repz, o, 1, skip). % TODO: Add instruction
 % ins(in, o, 2, skip). % TODO: Add instruction
 % ins(sti, o, 0, skip). % TODO: Add instruction

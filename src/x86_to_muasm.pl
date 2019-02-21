@@ -152,6 +152,8 @@ is_addr(addr(_,_,_,_)).
 
 % Load effective address
 tr_ins_(lea, [A,B]) := R :- !, tr_addr(A,A1), R = ~tr_assign(A1,B,no).
+% X <- F(A) (and sometimes update flags) (X is implicit in the operation)
+tr_ins_(exp1_to(F,B), [A]) := R :- !, R = ~tr_exp1(F,A,B).
 % B <- F(A) (and sometimes update flags)
 tr_ins_(exp1(F), [A,B]) := R :- !, R = ~tr_exp1(F,A,B).
 % C <- F(B,A) (and sometimes update flags)
@@ -160,8 +162,12 @@ tr_ins_(exp2(F), [A,B,C]) := R :- !, R = ~tr_exp2(F,A,B,C).
 tr_ins_(assign_exp1(F), [A]) := R :- !, R = ~tr_exp1(F,A,A).
 % B <- F(B,A) (and sometimes update flags)
 tr_ins_(assign_exp2(F), [A,B]) := R :- !, R = ~tr_exp2(F,A,B,B).
+% Exchange of operands % TODO: Change <x> By temp register
+tr_ins_(xchg, [A,B]) := R :- !,
+	R = [~tr_assign(A,'<x>',no),~tr_assign(B,A,no),~tr_assign('<x>',B,no)].
 % Substraction with borrow % TODO: OK?
-tr_ins_(subb, [A,B]) := R :- !, E =.. [ul,c1,c2], R = [(f<-E), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
+tr_ins_(subb, [A,B]) := R :- !, E =.. [ul,c1,c2],
+	R = [(f<-E), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
 % if c1>=c2 then (Result - 1) else Result
 % Update flags
 tr_ins_(uflags(F), [A,B]) := R :- !,
@@ -237,8 +243,9 @@ tr_exp1(F,A,B) := R :- !,
 	; F = dec  -> X = A1-1, UFlags = yes
 	; F = (>>) -> X = (A1>>1), UFlags = yes
 	; F = (<<) -> X = (A1<<1), UFlags = yes
-	; F = (ashr) -> X = ashr(A1,1), UFlags = yes
 	; F = (*)  -> X = ~map_reg('%ax')*A1, UFlags = no
+        % TODO: Set upper and lower parts ; F = (/)  -> X = ~map_reg('%ax')/A1, UFlags = no
+	; F = (ashr) -> X = ashr(A1,1), UFlags = yes
 	; throw(error(unsupported_exp1(F), tr_ins_/3))
 	),
 	R0 = [~tr_assign(X,B,UFlags)].
@@ -342,8 +349,10 @@ map_reg('%sil',si).
 map_reg('%si',si).
 map_reg('%rsp',sp).
 map_reg('%esp',sp).
+map_reg('%spl',sp).
 map_reg('%rbp',bp).
 map_reg('%ebp',bp).
+map_reg('%bpl',bp).
 map_reg('%rdi',di).
 map_reg('%edi',di).
 map_reg('%dil',di).
