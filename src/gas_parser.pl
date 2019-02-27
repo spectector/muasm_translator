@@ -29,7 +29,7 @@
 
 :- use_module(.(parser_aux)).
 :- use_module(.(x86_table), [fixins/3, ins/4]).
-:- use_module(spectector(spectector_flags), [ignore_unknown_instructions/0]).
+:- use_module(spectector(spectector_flags), [ignore_unknown_instructions/1]).
 
 % % (for testing)
 % :- export(main/1).
@@ -105,7 +105,7 @@ instruction(Ins) -->
 	{ length(Operands, N) },
 	{ fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
 	{ Ins =.. [InsName|Operands2] }.
-instruction(unknown(Ins), Str, []) :- ignore_unknown_instructions,
+instruction(unknown(Ins), Str, []) :- ignore_unknown_instructions(_),
 	atom_codes(Ins, Str).
 
 oplist(Ops)-->
