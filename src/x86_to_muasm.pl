@@ -48,7 +48,7 @@ emit([lookup_label(Label0,Label)|Xs0], Dic, N, IgnNames, H, C0, C) :=
 	dic_lookup(Dic, Label0, Label),
 	( member(Label0, ~labels), Xs1 = Xs0
 	; message(warning, ['Label not declared: ', Label0]),
-	  Xs1 = [label_unknwown(Label0)|Xs0]
+	  Xs1 = [label_unknown(Label0)|Xs0]
 	).
 emit([name_dir(Name, Data)|Xs], Dic, N, IgnNames, H, C0, C) :=
 	~emit([name(Name), Data|Xs], Dic, N, IgnNames, H, C0, C) :- !.
