@@ -89,7 +89,7 @@ label(Label) --> idcodes(Cs), ":", { atom_codes(Label, Cs) }, blanks, ( comment 
 
 directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
 
-instruction(Ins) --> blanks, "lock;", instruction(Ins). % TODO: Maybe parse lock?
+% instruction(Ins) --> blanks, "lock;", instruction(Ins). % TODO: Maybe parse lock?
 instruction(Ins) -->
 	blanks, 
 	insname(InsName1),
