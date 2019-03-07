@@ -236,7 +236,7 @@ tr_ins_(spbarr, []) := R :- !,
 	R = spbarr.
 % Jump (to a register or label)
 tr_ins_(jmp, [A]) := R :- !,
-	( is_reg(A) -> tr_op(A,Av), R = jmp(Av)
+	( A = indirect(Reg), is_reg(Reg) -> tr_op(Reg,Regv), R = indirect_jump(Regv)
 	; R = [lookup_label(A, Label), jmp(Label)]
 	).
 

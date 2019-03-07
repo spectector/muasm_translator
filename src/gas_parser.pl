@@ -146,9 +146,8 @@ operand(addr(0,Base,Index,1)) --> % TODO: Well done? (i.e %fs:40)
 	!.
 % TODO: Jump to number of instruction defined by the register
 % TODO: numeric positions of instructions as in x86
-operand(addr(0,Base,0,1)) --> "*", reg(Base).
+operand(indirect(Reg)) --> "*", reg(Reg).
 operand(addr(SignedOffset,Base,Index,Scale)) -->
-	( "*" ; [] ),
 	( offset(SignedOffset) -> []
 	; { SignedOffset = 0 }
 	),
