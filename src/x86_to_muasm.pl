@@ -48,7 +48,7 @@ emit([lookup_label(Label0,Label)|Xs0], Dic, N, IgnNames, H, C0, C) :=
 	dic_lookup(Dic, Label0, Label),
 	( member(Label0, ~labels), Xs1 = Xs0
 	; message(warning, ['Label not declared: ', Label0]),
-	  Xs1 = [label_unknown(Label0)|Xs0]
+	  Xs1 = [unknown_pc(Label0)|Xs0]
 	).
 emit([name_dir(Name, Data)|Xs], Dic, N, IgnNames, H, C0, C) :=
 	~emit([name(Name), Data|Xs], Dic, N, IgnNames, H, C0, C) :- !.
@@ -62,10 +62,10 @@ emit([name(Name)|Xs], Dic, _, IgnNames, (_H0, H1, H2), c(M,A), C) :=
     ( member(Name, IgnNames) -> Ign = true
     ; Ign = false ).
 % TODO: Unify all dir processing
-emit([dir(init, N)|Xs], Dic, (Name, Ign), IgnNames, (H0, H1, H2), c(M,A), C) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, (H0 ,H, H2), c(NM,A), C) :-
- !, ( Ign = true -> H = H1, NM = M
-    ; H is H1 + 1, NM = [H1=N|M]).
+emit([dir(init, N)|Xs], Dic, (Name, Ign), IgnNames, (H0, H1, H2), c(M0,A), C) :=
+	~emit(Xs, Dic, (Name, Ign), IgnNames, (H0 ,H, H2), c(M1,A), C) :-
+ !, ( Ign = true -> H = H1, M1 = M0
+    ; H is H1 + 1, M1 = [H1=N|M0]).
 emit([dir(cons, Value)|Xs], Dic, (Name, Ign), IgnNames, (H0, H1, H2), c(M0, A), C) :=
 	~emit(Xs, Dic, (Name, Ign), IgnNames, (H0, H, H2), c(M1, A), C) :-
  !, ( Ign = true -> H = H1, M1 = M0
@@ -87,7 +87,7 @@ tr_ins(name_dir(A, N)) := name_dir(A, N).
 tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)],
 	set_fact(labels([Label0|~labels])).
-tr_ins(Unknown_Ins) := Unknown_Ins :- Unknown_Ins =.. [unknown|_], !. % TODO: Finish on semantics
+tr_ins(Unknown_Ins) := Unknown_Ins :- Unknown_Ins =.. [unknown_ins|_], !. % TODO: Finish on semantics
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
 	ins(InsName, _, N, InsSem), % TODO: Maybe use fmt?
@@ -200,10 +200,10 @@ tr_ins_(condset(Cond), [A]) := R :- !,
 	),
 	R0 = [~tr_assign(0, A1, no), ~tr_ins_(condmov(Cond), [1,A1])|End].
 % Do B<-A depending on condition
-tr_ins_(condmov(Cond), [A,B]) := R :- !, % TODO: allow memory operands?
-	tr_ops([A,B],[Av,Bv]),
+tr_ins_(condmov(Cond), [A,B]) := R :- !,
+	tr_in([A,B],[Av,Bv],R,R0),
 	E =.. [Cond,c1,c2],
-	R = [(f<-E), cmov(f,(Bv<-Av))].
+	R0 = [(f<-E), cmov(f,(Bv<-Av))].
 % TODO: st and ld flags: on same memory possition without overlapping
 % Do mem<-(c1,c2)
 tr_ins_(st_flags, [A]) := R :- !, R = [~tr_assign(c1,A,no),~tr_assign(c2,A,no)].
@@ -213,13 +213,14 @@ tr_ins_(ld_flags, [A]) := R :- !, R = [~tr_assign(A,c1,no),~tr_assign(A,c2,no)].
 tr_ins_('<-', [A,B]) := R :- !, R = ~tr_assign(A,B,no).
 % Push into the stack
 tr_ins_(push, [A]) := R :- !,
-	tr_op(A,A1), % TODO: do load when A is an address
-	R = [(sp<-sp-8), store(A1, sp/\ (~spmask))].
+	tr_in([A],[A1],R,R0),
+	R0 = [(sp<-sp-8), store(A1, sp/\ (~spmask))].
 % Pop from the stack
 tr_ins_(pop, [A]) := R :- !,
-	tr_op(A,A1), % TODO: do a store when A is an address
-	R = [load(A1, sp/\ (~spmask)), (sp<-sp+8)].
+	tr_in([A],[A1],R,R0),
+	R0 = [load(A1, sp/\ (~spmask)), (sp<-sp+8)].
 % Return from call
+tr_ins_(ret, [void]) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
 tr_ins_(ret, [0]) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
 tr_ins_(ret, []) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
 % Do a call % TODO: Support if a register is given, by jumping to the number that it points to

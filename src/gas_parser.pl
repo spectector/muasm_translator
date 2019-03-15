@@ -105,7 +105,7 @@ instruction(Ins) -->
 	{ length(Operands, N) },
 	{ fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
 	{ Ins =.. [InsName|Operands2] }.
-instruction(unknown(Ins), Str, []) :- ignore_unknown_instructions,
+instruction(unknown_ins(Ins), Str, []) :- ignore_unknown_instructions,
 	atom_codes(Ins, Str).
 
 oplist(Ops)-->
@@ -241,6 +241,7 @@ skip_directive('.loc').
 skip_directive('.model').
 skip_directive('.weak').
 skip_directive('.text').
+skip_directive('.set'). % TODO: For macros -> parse
 % Always consider true the expression, so all the declared asembly will be generated
 skip_directive('.if').
 skip_directive('.endif').

@@ -167,8 +167,8 @@ ins(cbtw, o, 0, clt).
 ins(push, o, 1, push).
 ins(pop, o, 1, pop).
 ins(call, a, 1, call).
-ins(ret, o, 0, ret).
-ins(ret, o, 1, ret). % TODO: Pop the number of bytes (argument) from stack!!
+ins(ret, a, 0, ret).
+ins(ret, a, 1, ret). % TODO: Pop the number of bytes (argument) from stack!!
 % ins('rep mov', o, _, skip). % TODO: repeat ins?? modifying the rcx register -> Load (E)CX bytes from DS:[(E)SI] to AL.
 % ins('rep', o, _, skip). % TODO: repeat?? modifying the rcx register -> Load (E)CX bytes from DS:[(E)SI] to AL.
 % ins(repnz, o, 1, skip). % TODO: Add instruction
