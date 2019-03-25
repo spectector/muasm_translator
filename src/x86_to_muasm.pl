@@ -26,13 +26,15 @@
 
 % (muasm syntax)
 :- op(980, xfx, [(<-)]). % priority between (::) and (,)
-:- data (labels/1).
+
+% DB of seen labels
+:- data label/1.
 
 translate_x86_to_muasm(Format, F, Dic, IgnNames, HeapDir, Heap, Masm) :-
 	( Format = intel -> parse_file_intel(F, PrgX86)
 	; Format = gas -> parse_file_gas(F, PrgX86)
 	),
-	set_fact(labels([])),
+	retractall_fact(label(_)),
 	R = ~tr_insns(PrgX86),
 	R2 = ~flatten(R),
 	% TODO: Declare a non-free variable as the 3rd argument
@@ -46,7 +48,7 @@ emit([], _, _, _, _, C, C) := [].
 emit([lookup_label(Label0,Label)|Xs0], Dic, N, IgnNames, H, C0, C) :=
 	~emit(Xs1, Dic, N, IgnNames, H, C0, C) :- !,
 	dic_lookup(Dic, Label0, Label),
-	( member(Label0, ~labels), Xs1 = Xs0
+	( label(Label0) -> Xs1 = Xs0
 	; message(warning, ['Label not declared: ', Label0]),
 	  Xs1 = [unknown_pc(Label0)|Xs0]
 	).
@@ -86,7 +88,7 @@ tr_ins(dir(A, N)) := dir(A, N).
 tr_ins(name_dir(A, N)) := name_dir(A, N).
 tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)],
-	set_fact(labels([Label0|~labels])).
+	assertz_fact(label(Label0)).
 tr_ins(Unknown_Ins) := Unknown_Ins :- Unknown_Ins =.. [unknown_ins|_], !. % TODO: Finish on semantics
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
