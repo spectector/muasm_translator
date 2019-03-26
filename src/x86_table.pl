@@ -132,15 +132,17 @@ ins(xchg, o, 2, xchg). % TODO: Add instruction
 % ins(wrmsr, o, 0, skip). % TODO: Add instruction
 % ins(wbinvd, o, 0, skip). % TODO: Add instruction
 % ins(cpuid, o, 0, skip). % TODO: Add instruction
-% ins(cli, o, 0, skip). % TODO: Add instruction
-% ins(hlt, o, 0, skip). % TODO: Add instruction
+ins(cli, o, 0, skip). % TODO: enough for now
+ins(sti, o, 0, skip). % TODO: enough for now
+ins(hlt, o, 0, skip). % TODO: enough for now
+%ins(ud2, o, 0, skip). % TODO: "undefined instruction"
+ins(lock, o, 0, skip). % TODO: enough for now
 % ins(pushf, o, 0, skip). % TODO: Add instruction
 % ins(popf, o, 0, skip). % TODO: Add instruction
 % ins(lgdt, o, 1, skip). % TODO: Add instruction
 % ins(lret, o, 1, skip). % TODO: Add instruction
 % ins(repz, o, 1, skip). % TODO: Add instruction
 % ins(in, o, 2, skip). % TODO: Add instruction
-% ins(sti, o, 0, skip). % TODO: Add instruction
 % ins(bsr, o, 2, skip). % TODO: Add instruction
 % ins(wrfsbase, o, 1, skip). % TODO: Add instruction
 % ins(prefetcht0, o, 1, skip). % TODO: Add instruction
