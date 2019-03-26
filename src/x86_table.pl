@@ -135,7 +135,7 @@ ins(xchg, o, 2, xchg). % TODO: Add instruction
 ins(cli, o, 0, skip). % TODO: enough for now
 ins(sti, o, 0, skip). % TODO: enough for now
 ins(hlt, o, 0, skip). % TODO: enough for now
-%ins(ud2, o, 0, skip). % TODO: "undefined instruction"
+ins(ud2, o, 0, stop_ins). % TODO: "undefined instruction"
 ins(lock, o, 0, skip). % TODO: enough for now
 % ins(pushf, o, 0, skip). % TODO: Add instruction
 % ins(popf, o, 0, skip). % TODO: Add instruction
