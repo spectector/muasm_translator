@@ -235,8 +235,9 @@ tr_ins_(clt, []) := skip :- !. % TODO: fix, short form of "movslq %eax, %rax"
 tr_ins_(skip, [_]) := skip :- !. % TODO: for "npad N"; why?
 tr_ins_(skip, []) := skip :- !.
 % Speculative barrier
-tr_ins_(spbarr, []) := R :- !,
-	R = spbarr.
+tr_ins_(spbarr, []) := spbarr :- !.
+% Stop
+tr_ins_(stop_ins, []) := stop_ins :- !.
 % Jump (to a register or label)
 tr_ins_(jmp, [A]) := R :- !,
 	( A = indirect(Reg), is_reg(Reg) -> tr_op(Reg,Regv), R = indirect_jump(Regv)
