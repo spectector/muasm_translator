@@ -18,7 +18,9 @@
 :- doc(title, "GAS assembly parser").
 
 % This is a parser for the AT&T style assembly files, for X86 instructions.
-% See https://csiflabs.cs.ucdavis.edu/~ssdavis/50/att-syntax.htm
+% For more details see:
+%   http://sourceware.org/binutils/docs/as/
+%   https://csiflabs.cs.ucdavis.edu/~ssdavis/50/att-syntax.htm
 
 :- use_module(engine(messages_basic)).
 :- use_module(library(port_reify)). 
@@ -181,24 +183,23 @@ process_directive('.globl', name(Name)) -->
 	blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
 % TODO: Process the size on init
 % TODO: process operations i.e: ".long   .LBB1_3-.LJTI1_0"
-process_directive('.int', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('.long', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('.byte', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('.short', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('.word', dir(init, N)) --> blanks, num(N), ignore_rest.
-process_directive('.value', dir(init, N)) --> blanks, num(N), ignore_rest. % TODO: Introduce list processing
-process_directive('.zero', dir(cons, R)) --> blanks, num(N), ignore_rest,
-	{ replicate(0, N, R) }.
-process_directive('.size', name_dir(Name, dir(size, Size))) -->
+process_directive('.int', direc(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.long', direc(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.byte', direc(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.short', direc(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.word', direc(init, N)) --> blanks, num(N), ignore_rest.
+process_directive('.value', direc(init, N)) --> blanks, num(N), ignore_rest. % TODO: Introduce list processing
+process_directive('.zero', direc(zero, N)) --> blanks, num(N), ignore_rest.
+process_directive('.size', name_direc(Name, direc(size, Size))) -->
 	process_size(Name, Size).
-process_directive('.comm', name_dir(Name, dir(size, Size))) -->
+process_directive('.comm', name_direc(Name, direc(size, Size))) -->
 	process_size(Name, Size).
-process_directive('.asciz', dir(cons, String)) -->
-	process_directive('.ascii', dir(cons, S0)),
+process_directive('.asciz', direc(cons, String)) -->
+	process_directive('.ascii', direc(cons, S0)),
 	{ insert_last(S0, 0, String) }, ignore_rest.
-process_directive('.string', dir(cons, String)) -->
-	process_directive('.asciz', dir(cons, String)).
-process_directive('.ascii', dir(cons, String)) -->
+process_directive('.string', direc(cons, String)) -->
+	process_directive('.asciz', direc(cons, String)).
+process_directive('.ascii', direc(cons, String)) -->
 	blanks, string(String), ignore_rest.
 
 % TODO: how to process?
@@ -250,6 +251,3 @@ skip_directive('.long'). % For other cases that doesn't match the pattern
 skip_directive('.addrsig').
 skip_directive('.addrsig_sym').
 
-% TODO: In another file?
-replicate(_X,0,[]) :- !.
-replicate(X,N,[X|R]) :- N > 0, N1 is N - 1, replicate(X,N1,R).
