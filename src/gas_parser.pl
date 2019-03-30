@@ -177,9 +177,9 @@ operand(X) --> reg(X), !.
 
 
 % Generate a initial value
-process_directive('.type', name(Name)) -->
+process_directive('.type', symbol(Name)) --> % TODO: wrong
 	blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
-process_directive('.globl', name(Name)) -->
+process_directive('.globl', symbol(Name)) --> % TODO: wrong
 	blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
 % TODO: Process the size on init
 % TODO: process operations i.e: ".long   .LBB1_3-.LJTI1_0"
@@ -190,9 +190,9 @@ process_directive('.short', direc(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.word', direc(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.value', direc(init, N)) --> blanks, num(N), ignore_rest. % TODO: Introduce list processing
 process_directive('.zero', direc(zero, N)) --> blanks, num(N), ignore_rest.
-process_directive('.size', name_direc(Name, direc(size, Size))) -->
+process_directive('.size', symbol_direc(Name, direc(size, Size))) -->
 	process_size(Name, Size).
-process_directive('.comm', name_direc(Name, direc(size, Size))) -->
+process_directive('.comm', symbol_direc(Name, direc(size, Size))) -->
 	process_size(Name, Size).
 process_directive('.asciz', direc(cons, String)) -->
 	process_directive('.ascii', direc(cons, S0)),

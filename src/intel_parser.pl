@@ -105,7 +105,7 @@ sent('#') --> blanks, "$pdata", !, ignore_rest. % TODO: !!
 sent('#') --> blanks, "$unwind", !, ignore_rest. % TODO: !!
 sent('#') --> blanks, idcodes2(_), blanks, "ENDP", !, ignore_rest. % Each munction has a start and an end
 sent('#') --> blanks, idcodes2(_), blanks, "ENDS", !, ignore_rest. % Each munction has a start and an end
-sent(name_direc(Name, Data)) --> directive_labeled(Name, Dir), process_directive(Dir, Data), !.
+sent(symbol_direc(Name, Data)) --> directive_labeled(Name, Dir), process_directive(Dir, Data), !.
 sent(Data) --> directive(Dir), process_directive(Dir, Data), !.
 sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(const(N,V)) --> const(N,V), !.
@@ -324,14 +324,14 @@ get_id(Cs) := Id :-
 % Directives
 
 
-% process_directive('PUBLIC', name(N)) --> 
+% process_directive('PUBLIC', symbol(N)) --> 
 % 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
 % TODO: Process the size on init
 process_directive('DD', direc(init, N)) --> blanks, num_intel(N), !, ignore_rest.
 process_directive('DD', '#') --> blanks, idcodes2(_), blanks, "$", ignore_rest.
 process_directive('DB', direc(init, N)) --> blanks, num_intel(N), ignore_rest.
 process_directive('DQ', direc(init, N)) --> blanks, num_intel(N), ignore_rest.
-process_directive('COMM', name_direc(N, direc(size, S))) --> 
+process_directive('COMM', symbol_direc(N, direc(size, S))) --> 
 	blanks, idcodes2(Name),	{ atom_codes(N, Name) }, ":", size(Size),
 	":", num_intel(Num), { S is Num*Size }, ignore_rest.
 

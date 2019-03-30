@@ -34,7 +34,7 @@
 
 % ---------------------------------------------------------------------------
 
-translate_x86_to_muasm(Format, F, UseDump, Dic, IgnNames, InitMem, HeapDir, C, Prg) :- % TODO: Do not return a configuration! just symbol table and initial mem
+translate_x86_to_muasm(Format, F, UseDump, Dic, IgnNames, InitMem, HeapDir, MemLocs, Prg) :- % TODO: Do not return a configuration! just symbol table and initial mem
 	( UseDump = yes, has_dump(F, FDump) ->
 	    read_dump(FDump, PrgX86)
 	; ( Format = intel -> parse_file_intel(F, PrgX86)
@@ -46,32 +46,32 @@ translate_x86_to_muasm(Format, F, UseDump, Dic, IgnNames, InitMem, HeapDir, C, P
 	R = ~tr_insns(PrgX86),
 	R2 = ~flatten(R),
 	% TODO: Declare a non-free variable as the 3rd argument
-	C0 = c([],[]),
-	emit(R2, Dic, (<>, true), IgnNames, InitMem, (HeapDir, HeapDir, HeapDir), C0, C, Prg), !.
+	MemLocs0 = memlocs([],[]),
+	emit(R2, Dic, (<>, true), IgnNames, InitMem, (HeapDir, HeapDir, HeapDir), MemLocs0, MemLocs, Prg), !.
 % TODO: Change intial Heap direction
 translate_x86_to_muasm(_, _, _, _, _, _, _, _, _) :-
 	throw(error(failed_to_parse, translate_x86_to_muasm/8)).
 
-emit([], _, _, _, _, _, C, C) := [].
-emit([X|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :=
-	~emit_(X, Xs, Dic, CurrSymbol, IgnNames, InitMem, H, C0, C).
+emit([], _, _, _, _, _, MemLocs, MemLocs) := [].
+emit([X|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
+	~emit_(X, Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs).
 
 % Resolve pending labels (this remove lookup_label/2 entries)
-emit_(lookup_label(Label0,Label), Xs0, Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :=
-	~emit(Xs1, Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :- !,
+emit_(lookup_label(Label0,Label), Xs0, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
+	~emit(Xs1, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- !,
 	dic_lookup(Dic, Label0, Label),
 	( label(Label0) -> Xs1 = Xs0
 	; message(warning, ['Label not declared: ', Label0]),
 	  Xs1 = [unknown_pc(Label0)|Xs0]
 	).
 % TODO: wrong; this should just add parameters to symbols!
-emit_(name_direc(Name, Data), Xs, Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :=
-	~emit([name(Name), Data|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :- !.
+emit_(symbol_direc(Name, Data), Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
+	~emit([symbol(Name), Data|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- !.
 % Current symbol do not change
-emit_(name(Name), Xs, Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :=
-	~emit(Xs, Dic, CurrSymbol, IgnNames, InitMem, H, C0, C) :- CurrSymbol = (Name, _), !.
-emit_(name(Name), Xs, Dic, _, IgnNames, InitMem, (_H0, H1, H2), c(M,A), C) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H, H, _), c(M,[Name=H|A]), C) :- !,
+emit_(symbol(Name), Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
+	~emit(Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- CurrSymbol = (Name, _), !.
+emit_(symbol(Name), Xs, Dic, _, IgnNames, InitMem, (_H0, H1, H2), memlocs(M,A), MemLocs) :=
+	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H, H, _), memlocs(M,[Name=H|A]), MemLocs) :- !,
 	( var(H2) -> H = H1 % If size hasn't been declared
 	; H = H2
 	),
@@ -79,35 +79,35 @@ emit_(name(Name), Xs, Dic, _, IgnNames, InitMem, (_H0, H1, H2), c(M,A), C) :=
 	; Ign = false
 	).
 % TODO: Unify all dir processing
-emit_(direc(init, N), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), c(M0,A), C) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0 ,H, H2), c(M1,A), C) :- !,
+emit_(direc(init, N), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), memlocs(M0,A), MemLocs) :=
+	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0 ,H, H2), memlocs(M1,A), MemLocs) :- !,
 	( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
 	; fill_mem([N], InitMem, H1, H, M1, M0)
 	).
-emit_(direc(cons, Values), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), c(M0, A), C) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), c(M1, A), C) :- !,
+emit_(direc(cons, Values), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), memlocs(M0, A), MemLocs) :=
+	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), memlocs(M1, A), MemLocs) :- !,
 	( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
 	; fill_mem(Values, InitMem, H1, H, M1, M0)
 	).
-emit_(direc(zero, N), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), c(M0, A), C) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), c(M1, A), C) :- !,
+emit_(direc(zero, N), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), memlocs(M0, A), MemLocs) :=
+	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), memlocs(M1, A), MemLocs) :- !,
 	( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
 	; set_mem(N, 0, InitMem, H1, H, M1, M0)
 	).
-emit_(direc(size, V), Xs, Dic, Name, IgnNames, InitMem, (H0, H1, _H2), C0, C) :=
-	~emit(Xs, Dic, Name, IgnNames, InitMem, (H0, H1, H2), C0, C) :- !,
+emit_(direc(size, V), Xs, Dic, Name, IgnNames, InitMem, (H0, H1, _H2), MemLocs0, MemLocs) :=
+	~emit(Xs, Dic, Name, IgnNames, InitMem, (H0, H1, H2), MemLocs0, MemLocs) :- !,
 	H2 is H0 + V.
-emit_(X, Xs, Dic, Name, IgnNames, InitMem, H, C0, C) :=
-	[X|~emit(Xs, Dic, Name, IgnNames, InitMem, H, C0, C)] :- !.
+emit_(X, Xs, Dic, Name, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
+	[X|~emit(Xs, Dic, Name, IgnNames, InitMem, H, MemLocs0, MemLocs)] :- !.
 
 % Translate all instructions
 tr_insns([]) := [].
 tr_insns([X|Xs]) := [~tr_ins(X)| ~tr_insns(Xs)].
 
 % Translate one instruction (or label)
-tr_ins(name(N)) := name(N).
+tr_ins(symbol(N)) := symbol(N).
 tr_ins(direc(A, N)) := direc(A, N).
-tr_ins(name_direc(A, N)) := name_direc(A, N).
+tr_ins(symbol_direc(A, N)) := symbol_direc(A, N).
 tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)],
 	assertz_fact(label(Label0)).
