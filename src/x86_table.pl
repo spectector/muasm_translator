@@ -21,6 +21,7 @@
 % TODO: add the instructions that last
 % ins(X86InsName, FormatMasm, SemanticsMasm)
 :- export(ins/4).
+% TODO: ins/4 -> ins/3, merge the number of operands and operand type by a list with the operand types
 ins(lfence, o, 0, spbarr).
 ins(mfence, o, 0, spbarr). % TODO: Different memory fence ?
 ins(sfence, o, 0, spbarr). % TODO: Different store fence  ?

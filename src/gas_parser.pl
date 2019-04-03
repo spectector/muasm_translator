@@ -31,7 +31,6 @@
 
 :- use_module(.(parser_aux)).
 :- use_module(.(x86_table), [fixins/3, ins/4]).
-:- use_module(.(translator_flags), [ignore_unknown_instructions/0]).
 
 % % (for testing)
 % :- export(main/1).
@@ -84,12 +83,10 @@ sent(label_ins(Id,Ins)) --> blanks, label(Id), blanks, instruction(Ins), !.
 sent(Ins) --> instruction(Ins).
 
 comment --> blanks, "#", !, ignore_rest.
-%comment --> blanks, ";", !, ignore_rest. % TODO: Correctness
 
-label(Label) --> numcodes16_(N), ":", { number_codes(Label,16,N) }, blanks, ( comment -> [] ; [] ).
 label(Label) --> idcodes(Cs), ":", { atom_codes(Label, Cs) }, blanks, ( comment -> [] ; [] ).
 
-directive(X) --> blanks, idcodes(Dir), { Dir = "."||_, atom_codes(X, Dir) }, !.
+directive(X) --> blanks, idcodes(Cs), { Cs = "."||_, atom_codes(X, Cs) }, !.
 
 % instruction(Ins) --> blanks, "lock;", instruction(Ins). % TODO: Maybe parse lock?
 instruction(Ins) -->
@@ -107,8 +104,7 @@ instruction(Ins) -->
 	{ length(Operands, N) },
 	{ fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
 	{ Ins =.. [InsName|Operands2] }.
-instruction(unknown_ins(Ins), Str, []) :- ignore_unknown_instructions,
-	atom_codes(Ins, Str).
+instruction(unsupported_ins(Ins), Str, []) :- atom_codes(Ins, Str).
 
 oplist(Ops)-->
 	operand(Op),
@@ -139,15 +135,14 @@ reg(Reg) --> "%", idcodes(Cs), { atom_codes(Reg, [0'%|Cs]) }. % TODO: register!
 % address (or "[Base+Index*Scale+Offset]" in NASM syntax).
 %
 
-operand(Label) --> numcodes16_(N), { number_codes(Label,16,N) }, blanks1, !. % TODO: Use a flag for determine if there can be numeric labels
+% TODO: Jump to number of instruction defined by the register
+% TODO: numeric positions of instructions as in x86
 operand(addr(0,Base,Index,1)) --> % TODO: Well done? (i.e %fs:40)
 	reg(Base), ":",
 	( reg(Index) -> []
 	; num(Index)
 	),
 	!.
-% TODO: Jump to number of instruction defined by the register
-% TODO: numeric positions of instructions as in x86
 operand(indirect(Reg)) --> "*", reg(Reg).
 operand(addr(SignedOffset,Base,Index,Scale)) -->
 	( offset(SignedOffset) -> []

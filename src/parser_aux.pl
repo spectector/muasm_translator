@@ -108,7 +108,6 @@ suffix(none) --> "".
 :- export(offset/3).
 offset(A+B) --> num_or_id(A), "+", !, num_or_id(B).
 offset(A-B) --> num_or_id(A), "-", !, num_or_id(B).
-offset(A*B) --> num_or_id(A), "@", !, num_or_id(B). % TODO: Don't use '*' as an operand
 offset(A) --> num_or_id(A), !.
 
 % TODO: finish, naive approach

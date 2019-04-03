@@ -111,7 +111,7 @@ tr_ins(symbol_direc(A, N)) := symbol_direc(A, N).
 tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)],
 	assertz_fact(label(Label0)).
-tr_ins(Unknown_Ins) := Unknown_Ins :- Unknown_Ins =.. [unknown_ins|_], !. % TODO: Finish on semantics
+tr_ins(unsupported_ins(I)) := unsupported_ins(I) :- !. % TODO: Finish on semantics
 tr_ins(Ins_x86) := R :-
 	Ins_x86 =.. [InsName|Ops],
 	ins(InsName, _, N, InsSem), % TODO: Maybe use fmt?
@@ -197,8 +197,8 @@ tr_ins_(assign_exp2(F), [A,B]) := R :- !, R = ~tr_exp2(F,A,B,B).
 tr_ins_(xchg, [A,B]) := R :- !,
 	R = [~tr_assign(A,'<x>',no),~tr_assign(B,A,no),~tr_assign('<x>',B,no)].
 % Substraction with borrow % TODO: OK?
-tr_ins_(subb, [A,B]) := R :- !, E =.. [ul,c1,c2],
-	R = [(f<-E), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
+tr_ins_(subb, [A,B]) := R :- !,
+	R = [(f<-ul(c1,c2)), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
 % if c1>=c2 then (Result - 1) else Result
 % Update flags
 tr_ins_(uflags(F), [A,B]) := R :- !,
