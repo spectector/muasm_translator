@@ -29,7 +29,7 @@
 :- use_module(library(dict)).
 
 :- use_module(.(parser_aux)).
-:- use_module(.(x86_table), [fixins/3, ins/3]).
+:- use_module(.(x86_table), [fixins/3, ins/4]).
 
 % % (for testing)
 % :- export(main/1).
@@ -100,52 +100,37 @@ replace_const_xs([X|Xs], Dic) := [~replace_const(X, Dic)| ~replace_const_xs(Xs, 
 
 sent('#') --> empty, !.
 sent('#') --> comment, !.
-sent('#') --> directive, !. % TODO: directives are ignored
+sent('#') --> blanks, "?", !, ignore_rest. % TODO: !!
+sent('#') --> blanks, "$pdata", !, ignore_rest. % TODO: !!
+sent('#') --> blanks, "$unwind", !, ignore_rest. % TODO: !!
+sent('#') --> blanks, idcodes2(_), blanks, "ENDP", !, ignore_rest. % Each munction has a start and an end
+sent('#') --> blanks, idcodes2(_), blanks, "ENDS", !, ignore_rest. % Each munction has a start and an end
+sent(symbol_direc(Name, Data)) --> directive_labeled(Name, Dir), process_directive(Dir, Data), !.
+sent(Data) --> directive(Dir), process_directive(Dir, Data), !.
+sent('#') --> directive(Dir), { skip_directive(Dir) }, ignore_rest, !. % TODO: finish
 sent(const(N,V)) --> const(N,V), !.
 sent(label(Id)) --> label(Id), !.
 sent(Ins) --> instruction(Ins).
 
 comment --> blanks, "#", !, ignore_rest.
+comment --> blanks, ";", !, ignore_rest.
 
 label(Label) --> idcodes2(Cs), { Cs = ["_"|_] }, !, blanks, ignore_rest, { atom_codes(Label, Cs) }.
 label(Label) --> idcodes2(Cs), ":", !, { get_id(Cs, Label) }, ( comment -> [] ; [] ).
 label(Label) --> idcodes2(Cs), blanks, "PROC", !, ignore_rest, { atom_codes(Label, Cs) }.
-label(Label) --> idcodes2(Cs), blanks, "DB", !, ignore_rest, {atom_codes(Label,Cs)}.
-label(Label) --> idcodes2(Cs), blanks, "DD", !, ignore_rest, {atom_codes(Label,Cs)}.
-label(Label) --> idcodes2(Cs), blanks, "DQ", !, ignore_rest, {atom_codes(Label,Cs)}.
 label(Label) --> idcodes2(Cs), blanks, "SEGMENT", !, ignore_rest, {atom_codes(Label,Cs)}.
 
 const(N,V) --> blanks, idcodes2(Cs), blanks, "=", !, 
 	{ get_id(Cs, N) },
 	blanks, num(V).
 
-% TODO: (currently ignored)
-directive --> blanks, directive_.
-
-directive_ --> "TITLE", !, ignore_rest.
-directive_ --> "INCLUDELIB", !, ignore_rest.
-directive_ --> "PUBLIC", !, ignore_rest.
-directive_ --> "ALIGN", !, ignore_rest.
-directive_ --> "COMM", !, ignore_rest.
-directive_ --> "DB", !, ignore_rest.
-directive_ --> "END", !, ignore_rest.
-directive_ --> "EXTRN", !, ignore_rest.
-directive_ --> "_DATA", !, ignore_rest.
-directive_ --> "_TEXT", !, ignore_rest.
-directive_ --> "_BSS", !, ignore_rest.
-directive_ --> "ORG", !, ignore_rest.
-directive_ --> "DB", !, ignore_rest.
-directive_ --> "DD", !, ignore_rest.
-directive_ --> "DQ", !, ignore_rest.
-directive_ --> idcodes2(_), blanks, "ENDP", !, ignore_rest. % Each function has 2 labels (PROC & ENDP)
-directive_ --> idcodes2(_), blanks, "ENDS", !, ignore_rest. % Each function has 2 labels (PROC & ENDP)
-directive_ --> "include", ignore_rest.
-directive_ --> ";", ignore_rest.
+directive(X) --> blanks, idcodes(Dir), { atom_codes(X, Dir) }, !.
+directive_labeled(Name, Dir) --> blanks, idcodes(N), { atom_codes(Name, N) }, blanks, idcodes(D), { atom_codes(Dir, D) }, !.
 
 instruction(Ins) -->
 	blanks, 
-	insname(InsName1), { atom_codes(InsName,InsName1) },
-	{ ins(InsName,Fmt,_) }, 
+	insname(InsName1), { atom_codes(InsName, InsName1) },
+	{ ins(InsName, Fmt, N, _) }, % TODO: insert number of operands coherency
 	( blanks1,
 	  oplist(Operands) -> []
 	; { Operands = [] }
@@ -154,7 +139,8 @@ instruction(Ins) -->
 	; "#" -> ignore_rest
 	; []
 	),
-	{ reverse(Operands,IntelOperands),
+	{ length(Operands, N),
+	  reverse(Operands,IntelOperands),
 	  fixins(Fmt, IntelOperands, Operands2),
 	  Ins =.. [InsName|Operands2] }.
 
@@ -332,3 +318,41 @@ get_id(Cs) := Id :-
 	atom_codes(Id, Cs1).
 get_id(Cs) := Id :-
 	atom_codes(Id, Cs).
+
+
+% ---------------------------------------------------------------------------
+% Directives
+
+
+% process_directive('PUBLIC', symbol(N)) --> 
+% 	blanks, idcodes(Name), { atom_codes(N, Name) }, ignore_rest.
+% TODO: Process the size on init
+process_directive('DD', direc(init, N)) --> blanks, num_intel(N), !, ignore_rest.
+process_directive('DD', '#') --> blanks, idcodes2(_), blanks, "$", ignore_rest.
+process_directive('DB', direc(init, N)) --> blanks, num_intel(N), ignore_rest.
+process_directive('DQ', direc(init, N)) --> blanks, num_intel(N), ignore_rest.
+process_directive('COMM', symbol_direc(N, direc(size, S))) --> 
+	blanks, idcodes2(Name),	{ atom_codes(N, Name) }, ":", size(Size),
+	":", num_intel(Num), { S is Num*Size }, ignore_rest.
+
+% TODO: how to process?
+process_directive('_DATA', '#') --> ignore_rest.
+process_directive('_BSS', '#') --> ignore_rest.
+
+size(1) --> "BYTE".
+size(8) --> "DWORD". % TODO: Well done?
+
+% Skip
+skip_directive('PUBLIC').
+skip_directive('TITLE').
+skip_directive('INCLUDELIB').
+skip_directive('ALIGN').
+skip_directive('DB').
+skip_directive('END').
+skip_directive('EXTRN').
+skip_directive('ORG').
+skip_directive('DB').
+skip_directive('DQ').
+skip_directive('include').
+skip_directive('end').
+skip_directive('_TEXT').
