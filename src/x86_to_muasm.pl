@@ -35,70 +35,70 @@
 % ---------------------------------------------------------------------------
 
 translate_x86_to_muasm(Format, F, UseDump, Dic, IgnNames, InitMem, HeapDir, MemLocs, Prg) :- % TODO: Do not return a configuration! just symbol table and initial mem
-	( UseDump = yes, has_dump(F, FDump) ->
-	    read_dump(FDump, PrgX86)
-	; ( Format = intel -> parse_file_intel(F, PrgX86)
-	  ; Format = gas -> parse_file_gas(F, PrgX86)
-	  ),
-	  write_dump(~dump_file(F), PrgX86)
-	),
-	retractall_fact(label(_)),
-	R = ~tr_insns(PrgX86),
-	R2 = ~flatten(R),
-	% TODO: Declare a non-free variable as the 3rd argument
-	MemLocs0 = memlocs([],[]),
-	emit(R2, Dic, (<>, true), IgnNames, InitMem, (HeapDir, HeapDir, HeapDir), MemLocs0, MemLocs, Prg), !.
+        ( UseDump = yes, has_dump(F, FDump) ->
+            read_dump(FDump, PrgX86)
+        ; ( Format = intel -> parse_file_intel(F, PrgX86)
+          ; Format = gas -> parse_file_gas(F, PrgX86)
+          ),
+          write_dump(~dump_file(F), PrgX86)
+        ),
+        retractall_fact(label(_)),
+        R = ~tr_insns(PrgX86),
+        R2 = ~flatten(R),
+        % TODO: Declare a non-free variable as the 3rd argument
+        MemLocs0 = memlocs([],[]),
+        emit(R2, Dic, (<>, true), IgnNames, InitMem, (HeapDir, HeapDir, HeapDir), MemLocs0, MemLocs, Prg), !.
 % TODO: Change intial Heap direction
 translate_x86_to_muasm(_, _, _, _, _, _, _, _, _) :-
-	throw(error(failed_to_parse, translate_x86_to_muasm/8)).
+        throw(error(failed_to_parse, translate_x86_to_muasm/8)).
 
 emit([], _, _, _, _, _, MemLocs, MemLocs) := [].
 emit([X|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
-	~emit_(X, Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs).
+        ~emit_(X, Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs).
 
 % Resolve pending labels (this remove lookup_label/2 entries)
 emit_(lookup_label(Label0,Label), Xs0, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
-	~emit(Xs1, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- !,
-	dic_lookup(Dic, Label0, Label),
-	( label(Label0) -> Xs1 = Xs0
-	; message(warning, ['Label not declared: ', Label0]),
-	  Xs1 = [unknown_pc(Label0)|Xs0]
-	).
+        ~emit(Xs1, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- !,
+        dic_lookup(Dic, Label0, Label),
+        ( label(Label0) -> Xs1 = Xs0
+        ; message(warning, ['Label not declared: ', Label0]),
+          Xs1 = [unknown_pc(Label0)|Xs0]
+        ).
 % TODO: wrong; this should just add parameters to symbols!
 emit_(symbol_direc(Name, Data), Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
-	~emit([symbol(Name), Data|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- !.
+        ~emit([symbol(Name), Data|Xs], Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- !.
 % Current symbol do not change
 emit_(symbol(Name), Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
-	~emit(Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- CurrSymbol = (Name, _), !.
+        ~emit(Xs, Dic, CurrSymbol, IgnNames, InitMem, H, MemLocs0, MemLocs) :- CurrSymbol = (Name, _), !.
 emit_(symbol(Name), Xs, Dic, _, IgnNames, InitMem, (_H0, H1, H2), memlocs(M,A), MemLocs) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H, H, _), memlocs(M,[Name=H|A]), MemLocs) :- !,
-	( var(H2) -> H = H1 % If size hasn't been declared
-	; H = H2
-	),
-	( member(Name, IgnNames) -> Ign = true
-	; Ign = false
-	).
+        ~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H, H, _), memlocs(M,[Name=H|A]), MemLocs) :- !,
+        ( var(H2) -> H = H1 % If size hasn't been declared
+        ; H = H2
+        ),
+        ( member(Name, IgnNames) -> Ign = true
+        ; Ign = false
+        ).
 % TODO: Unify all dir processing
 emit_(direc(init, N), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), memlocs(M0,A), MemLocs) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0 ,H, H2), memlocs(M1,A), MemLocs) :- !,
-	( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
-	; fill_mem([N], InitMem, H1, H, M1, M0)
-	).
+        ~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0 ,H, H2), memlocs(M1,A), MemLocs) :- !,
+        ( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
+        ; fill_mem([N], InitMem, H1, H, M1, M0)
+        ).
 emit_(direc(cons, Values), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), memlocs(M0, A), MemLocs) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), memlocs(M1, A), MemLocs) :- !,
-	( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
-	; fill_mem(Values, InitMem, H1, H, M1, M0)
-	).
+        ~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), memlocs(M1, A), MemLocs) :- !,
+        ( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
+        ; fill_mem(Values, InitMem, H1, H, M1, M0)
+        ).
 emit_(direc(zero, N), Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H1, H2), memlocs(M0, A), MemLocs) :=
-	~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), memlocs(M1, A), MemLocs) :- !,
-	( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
-	; set_mem(N, 0, InitMem, H1, H, M1, M0)
-	).
+        ~emit(Xs, Dic, (Name, Ign), IgnNames, InitMem, (H0, H, H2), memlocs(M1, A), MemLocs) :- !,
+        ( Ign = true -> H = H1, M1 = M0 % TODO: wrong!
+        ; set_mem(N, 0, InitMem, H1, H, M1, M0)
+        ).
 emit_(direc(size, V), Xs, Dic, Name, IgnNames, InitMem, (H0, H1, _H2), MemLocs0, MemLocs) :=
-	~emit(Xs, Dic, Name, IgnNames, InitMem, (H0, H1, H2), MemLocs0, MemLocs) :- !,
-	H2 is H0 + V.
+        ~emit(Xs, Dic, Name, IgnNames, InitMem, (H0, H1, H2), MemLocs0, MemLocs) :- !,
+        H2 is H0 + V.
 emit_(X, Xs, Dic, Name, IgnNames, InitMem, H, MemLocs0, MemLocs) :=
-	[X|~emit(Xs, Dic, Name, IgnNames, InitMem, H, MemLocs0, MemLocs)] :- !.
+        [X|~emit(Xs, Dic, Name, IgnNames, InitMem, H, MemLocs0, MemLocs)] :- !.
 
 % Translate all instructions
 tr_insns([]) := [].
@@ -110,22 +110,22 @@ tr_ins(direc(A, N)) := direc(A, N).
 tr_ins(symbol_direc(A, N)) := symbol_direc(A, N).
 tr_ins(label_ins(Label0,Ins_x86)) := R :- !, R = ~append(~tr_ins(label(Label0)), ~tr_ins(Ins_x86)).
 tr_ins(label(Label0)) := R :- !, R = [lookup_label(Label0, Label), label(Label)],
-	assertz_fact(label(Label0)).
+        assertz_fact(label(Label0)).
 tr_ins(unsupported_ins(I)) := unsupported_ins(I) :- !. % TODO: Finish on semantics
 tr_ins(Ins_x86) := R :-
-	Ins_x86 =.. [InsName|Ops],
-	ins(InsName, _, N, InsSem), % TODO: Maybe use fmt?
-	length(Ops, N),
-	( R = ~tr_ins_(InsSem, Ops) -> true
-	; throw(error(could_not_translate(Ins_x86), tr_ins/2))
-	).
+        Ins_x86 =.. [InsName|Ops],
+        ins(InsName, _, N, InsSem), % TODO: Maybe use fmt?
+        length(Ops, N),
+        ( R = ~tr_ins_(InsSem, Ops) -> true
+        ; throw(error(could_not_translate(Ins_x86), tr_ins/2))
+        ).
 
 tr_addr(addr(Offset,Base,Index,Scale)) := S :-
-	tr_op(Offset,Offset2),
-	tr_op(Base,Base2),
-	tr_op(Index,Index2),
-	scale_log2(Scale,Log),
-	simpl(Base2+(Index2<<Log)+Offset2, S).
+        tr_op(Offset,Offset2),
+        tr_op(Base,Base2),
+        tr_op(Index,Index2),
+        scale_log2(Scale,Log),
+        simpl(Base2+(Index2<<Log)+Offset2, S).
 
 scale_log2(0,0).
 scale_log2(1,0).
@@ -195,39 +195,39 @@ tr_ins_(assign_exp1(F), [A]) := R :- !, R = ~tr_exp1(F,A,A).
 tr_ins_(assign_exp2(F), [A,B]) := R :- !, R = ~tr_exp2(F,A,B,B).
 % Exchange of operands % TODO: Change <x> By temp register
 tr_ins_(xchg, [A,B]) := R :- !,
-	R = [~tr_assign(A,'<x>',no),~tr_assign(B,A,no),~tr_assign('<x>',B,no)].
+        R = [~tr_assign(A,'<x>',no),~tr_assign(B,A,no),~tr_assign('<x>',B,no)].
 % Substraction with borrow % TODO: OK?
 tr_ins_(subb, [A,B]) := R :- !,
-	R = [(f<-ul(c1,c2)), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
+        R = [(f<-ul(c1,c2)), ~tr_exp2(-,A,B,B), ~tr_exp2(-,f,B,B)].
 % if c1>=c2 then (Result - 1) else Result
 % Update flags
 tr_ins_(uflags(F), [A,B]) := R :- !,
-	tr_in([A,B],[A1,B1],R,R0),
-	% TODO: fix semantics of test, which is very similar to cmp except for AF flag
-	( F = compare -> R0 = [~uflags(B1,A1)]
-	; F = test, A1=B1 -> R0 = [~uflags(A1,0)] % TODO: OK?
-	; F = test, integer(A1) -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
-	; F = test -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
-	; throw(error(unsupported_uflags(F,A,B), tr_ins_/3))
-	).
+        tr_in([A,B],[A1,B1],R,R0),
+        % TODO: fix semantics of test, which is very similar to cmp except for AF flag
+        ( F = compare -> R0 = [~uflags(B1,A1)]
+        ; F = test, A1=B1 -> R0 = [~uflags(A1,0)] % TODO: OK?
+        ; F = test, integer(A1) -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
+        ; F = test -> R0 = [~uflags((B1 /\ A1), 0)] % TODO: OK?
+        ; throw(error(unsupported_uflags(F,A,B), tr_ins_/3))
+        ).
 tr_ins_(branch(parity), [Label0]) := R :- !, % TODO: Well done?
-	E =.. [=,c1,c2],
-	R = [lookup_label(Label0,Label), (c1<-'c1%2'), (f<-E), beqz(f,Label)].
+        E =.. [=,c1,c2],
+        R = [lookup_label(Label0,Label), (c1<-'c1%2'), (f<-E), beqz(f,Label)].
 tr_ins_(branch(Cond), [Label0]) := R :- !,
-	contrary(Cond,NCond),
-	E =.. [NCond,c1,c2],
-	R = [lookup_label(Label0,Label), (f<-E), beqz(f,Label)].
+        contrary(Cond,NCond),
+        E =.. [NCond,c1,c2],
+        R = [lookup_label(Label0,Label), (f<-E), beqz(f,Label)].
 % Set A to 0 or 1 depending on condition
 tr_ins_(condset(Cond), [A]) := R :- !,
-	( is_addr(A) -> tr_in([A], [A1], R, R0), End = ~tr_assign(A1, A, no)
-	; R = R0, End = [], A1 = A
-	),
-	R0 = [~tr_assign(0, A1, no), ~tr_ins_(condmov(Cond), [1,A1])|End].
+        ( is_addr(A) -> tr_in([A], [A1], R, R0), End = ~tr_assign(A1, A, no)
+        ; R = R0, End = [], A1 = A
+        ),
+        R0 = [~tr_assign(0, A1, no), ~tr_ins_(condmov(Cond), [1,A1])|End].
 % Do B<-A depending on condition
 tr_ins_(condmov(Cond), [A,B]) := R :- !,
-	tr_in([A,B],[Av,Bv],R,R0),
-	E =.. [Cond,c1,c2],
-	R0 = [(f<-E), cmov(f,(Bv<-Av))].
+        tr_in([A,B],[Av,Bv],R,R0),
+        E =.. [Cond,c1,c2],
+        R0 = [(f<-E), cmov(f,(Bv<-Av))].
 % TODO: st and ld flags: on same memory possition without overlapping
 % Do mem<-(c1,c2)
 tr_ins_(st_flags, [A]) := R :- !, R = [~tr_assign(c1,A,no),~tr_assign(c2,A,no)].
@@ -237,12 +237,12 @@ tr_ins_(ld_flags, [A]) := R :- !, R = [~tr_assign(A,c1,no),~tr_assign(A,c2,no)].
 tr_ins_('<-', [A,B]) := R :- !, R = ~tr_assign(A,B,no).
 % Push into the stack
 tr_ins_(push, [A]) := R :- !,
-	tr_in([A],[A1],R,R0),
-	R0 = [(sp<-sp-8), store(A1, sp/\ (~spmask))].
+        tr_in([A],[A1],R,R0),
+        R0 = [(sp<-sp-8), store(A1, sp/\ (~spmask))].
 % Pop from the stack
 tr_ins_(pop, [A]) := R :- !,
-	tr_in([A],[A1],R,R0),
-	R0 = [load(A1, sp/\ (~spmask)), (sp<-sp+8)].
+        tr_in([A],[A1],R,R0),
+        R0 = [load(A1, sp/\ (~spmask)), (sp<-sp+8)].
 % Return from call
 tr_ins_(ret, [void]) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
 tr_ins_(ret, [0]) := R :- !, R = [~tr_ins_(pop, [tmp]), jmp(tmp)].
@@ -262,76 +262,76 @@ tr_ins_(spbarr, []) := spbarr :- !.
 tr_ins_(stop_ins, []) := stop_ins :- !.
 % Jump (to a register or label)
 tr_ins_(jmp, [A]) := R :- !,
-	( A = indirect(Reg), is_reg(Reg) -> tr_op(Reg,Regv), R = indirect_jump(Regv)
-	; R = [lookup_label(A, Label), jmp(Label)]
-	).
+        ( A = indirect(Reg), is_reg(Reg) -> tr_op(Reg,Regv), R = indirect_jump(Regv)
+        ; R = [lookup_label(A, Label), jmp(Label)]
+        ).
 
 % TODO: complete flag support! (with a parameter if needed)
 % TODO: Division!! (Include also in the semantics)
 tr_exp1(F,A,B) := R :- !,
-	tr_in([A],[A1],R,R0),
-	( F = neg  -> X = -A1, UFlags = no
-	; F = not  -> X = A1 # (-1), UFlags = yes
-	; F = inc  -> X = A1+1, UFlags = yes
-	; F = dec  -> X = A1-1, UFlags = yes
-	; F = (>>) -> X = (A1>>1), UFlags = yes
-	; F = (<<) -> X = (A1<<1), UFlags = yes
-	; F = (*)  -> X = ~map_reg('%ax')*A1, UFlags = no
+        tr_in([A],[A1],R,R0),
+        ( F = neg  -> X = -A1, UFlags = no
+        ; F = not  -> X = A1 # (-1), UFlags = yes
+        ; F = inc  -> X = A1+1, UFlags = yes
+        ; F = dec  -> X = A1-1, UFlags = yes
+        ; F = (>>) -> X = (A1>>1), UFlags = yes
+        ; F = (<<) -> X = (A1<<1), UFlags = yes
+        ; F = (*)  -> X = ~map_reg('%ax')*A1, UFlags = no
         % TODO: Set upper and lower parts ; F = (/)  -> X = ~map_reg('%ax')/A1, UFlags = no
-	; F = (ashr) -> X = ashr(A1,1), UFlags = yes
-	; throw(error(unsupported_exp1(F), tr_ins_/3))
-	),
-	R0 = [~tr_assign(X,B,UFlags)].
+        ; F = (ashr) -> X = ashr(A1,1), UFlags = yes
+        ; throw(error(unsupported_exp1(F), tr_ins_/3))
+        ),
+        R0 = [~tr_assign(X,B,UFlags)].
 
 % TODO: complete flag support! (with a parameter if needed)
 % TODO: if sal implemented ,update flags
 tr_exp2(F,A,B,C) := R :- !,
-	tr_in([A,B],[A1,B1],R,R0),
-	( F = (*) -> ( X = ~simpl_mul(A1,B1)
-		     ; X = (B1*A1)
-		     ), UFlags = no
-	; F = (+) -> X = (B1+A1), UFlags = yes
-	; F = (-) -> X = (B1-A1), UFlags = yes
-	; F = (#) -> X = (B1#A1), UFlags = yes
-	; F = (pxor) -> X = (B1#A1), UFlags = no
-	; F = (>>) -> X = (B1>>A1), UFlags = yes
-	; F = (<<) -> X = (B1<<A1), UFlags = yes
-	; F = (ashr) -> X = ashr(B1,A1), UFlags = yes
-	; X =.. [F,B1,A1], UFlags = no
-	),
-	( C=X, UFlags = no -> R0 = [skip]
-	; R0 = [~tr_assign(X,C,UFlags)]
-	).
+        tr_in([A,B],[A1,B1],R,R0),
+        ( F = (*) -> ( X = ~simpl_mul(A1,B1)
+                     ; X = (B1*A1)
+                     ), UFlags = no
+        ; F = (+) -> X = (B1+A1), UFlags = yes
+        ; F = (-) -> X = (B1-A1), UFlags = yes
+        ; F = (#) -> X = (B1#A1), UFlags = yes
+        ; F = (pxor) -> X = (B1#A1), UFlags = no
+        ; F = (>>) -> X = (B1>>A1), UFlags = yes
+        ; F = (<<) -> X = (B1<<A1), UFlags = yes
+        ; F = (ashr) -> X = ashr(B1,A1), UFlags = yes
+        ; X =.. [F,B1,A1], UFlags = no
+        ),
+        ( C=X, UFlags = no -> R0 = [skip]
+        ; R0 = [~tr_assign(X,C,UFlags)]
+        ).
 
 % TODO: both A and B cannot be addr at the same time (not valid in X86 but we could do it)!!
 % TODO: implement tr_out/4 (or similar) to do it properly
 tr_assign(A,B,UFlags) := R :- is_addr(A), !, UFlags = no,
-	tr_addr(A,Av), tr_op(B,Bv),
-	R = load(Bv,Av).
+        tr_addr(A,Av), tr_op(B,Bv),
+        R = load(Bv,Av).
 tr_assign(A,B,yes) := R :- is_addr(B), !,
-	tr_op(A,A1), tr_addr(B,Bv),
-	R = [(e <- A1), ~uflags(e,0), store(e,Bv)].
+        tr_op(A,A1), tr_addr(B,Bv),
+        R = [(e <- A1), ~uflags(e,0), store(e,Bv)].
 tr_assign(A,B,no) := R :- is_addr(B), !,
-	tr_op(A,Av), tr_addr(B,Bv),
-	R = store(Av,Bv).
+        tr_op(A,Av), tr_addr(B,Bv),
+        R = store(Av,Bv).
 tr_assign(A,B,yes) := R :- !,
-	tr_op(A,A1), tr_op(B,B1),
-	R = [(B1 <- A1), ~uflags(B1,0)].
+        tr_op(A,A1), tr_op(B,B1),
+        R = [(B1 <- A1), ~uflags(B1,0)].
 tr_assign(A,B,no) := R :- !,
-	tr_op(A,A1), tr_op(B,B1),
-	R = (B1 <- A1).
+        tr_op(A,A1), tr_op(B,B1),
+        R = (B1 <- A1).
 
 % Translate input operands (introducing load if needed)
 tr_in(Xs, Ys, R, R0) :-
-	tr_in_(Xs, Ys, e, R, R0).
+        tr_in_(Xs, Ys, e, R, R0).
 
 tr_in_([], [], _, R, R0) :- !, R = R0.
 tr_in_([X|Xs], [Tmp|Ys], Tmp, [load(Tmp,Xv)|R1], R0) :- is_addr(X), !,
-	tr_addr(X,Xv),
-	tr_in_(Xs, Ys, ~next_tmp(Tmp), R1, R0).
+        tr_addr(X,Xv),
+        tr_in_(Xs, Ys, ~next_tmp(Tmp), R1, R0).
 tr_in_([X|Xs], [Xv|Ys], Tmp, R1, R0) :-
-	tr_op(X,Xv),
-	tr_in_(Xs, Ys, Tmp, R1, R0).
+        tr_op(X,Xv),
+        tr_in_(Xs, Ys, Tmp, R1, R0).
 
 % TODO: only two temporary registers, but this should be enough for now
 next_tmp(e,f).
@@ -350,10 +350,10 @@ tr_op(X,Y) :- ( is_reg(X), rename_reg(X,Y0) -> Y = Y0 ; Y = X ).
 is_reg(X) :- atom(X), atom_concat('%',_,X).
 
 rename_reg(X,Y) :-
-	( map_reg(X,Y) -> true
-	; Y=X,
-	  message(warning, ['unknown register: ', X])
-	).
+        ( map_reg(X,Y) -> true
+        ; Y=X,
+          message(warning, ['unknown register: ', X])
+        ).
 
 % TODO: ignoring size is an approximation
 map_reg('%rax',ax).
@@ -430,24 +430,24 @@ contrary(\=,=).
 
 % Fill memory with values Vs
 fill_mem(Vs, no, H0, H, Mem, Mem0) :- !,
-	length(Vs, N),
-	H is H0 + N, Mem = Mem0.
+        length(Vs, N),
+        H is H0 + N, Mem = Mem0.
 fill_mem(Vs, _, H0, H, Mem, Mem0) :-
-	fill_mem_(Vs, H0, H, Mem, Mem0).
+        fill_mem_(Vs, H0, H, Mem, Mem0).
 
 fill_mem_([V|Vs], H0, H, [H0=V|Mem], Mem0) :- !,
-	H1 is H0 + 1,
-	fill_mem_(Vs, H1, H, Mem, Mem0).
+        H1 is H0 + 1,
+        fill_mem_(Vs, H1, H, Mem, Mem0).
 fill_mem_([], H, H, Mem, Mem).
 
 % Set memory with N times value V
 set_mem(N, _V, no, H0, H, Mem, Mem0) :- !,
-	H is H0 + N, Mem = Mem0.
+        H is H0 + N, Mem = Mem0.
 set_mem(N, V, _, H0, H, Mem, Mem0) :-
-	set_mem_(N, V, H0, H, Mem, Mem0).
+        set_mem_(N, V, H0, H, Mem, Mem0).
 
 set_mem_(N, V, H0, H, [H0=V|Mem], Mem0) :- N > 0, !,
-	H1 is H0 + 1,
-	N1 is N - 1,
-	set_mem_(N1, V, H1, H, Mem, Mem0).
+        H1 is H0 + 1,
+        N1 is N - 1,
+        set_mem_(N1, V, H1, H, Mem, Mem0).
 set_mem_(_, _, H, H, Mem, Mem).
