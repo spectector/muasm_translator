@@ -44,29 +44,29 @@
 
 % Parse program from file F into R
 parse_file_gas(F, R) :-
-        catch(parse_file_(F, R), E, handle_err(E)).
+    catch(parse_file_(F, R), E, handle_err(E)).
 
 parse_file_(F, Insns) :-
-        open(F, read, S),
-        once_port_reify(parse_stream(S, Insns), Port),
-        close(S),
-        port_call(Port).
+    open(F, read, S),
+    once_port_reify(parse_stream(S, Insns), Port),
+    close(S),
+    port_call(Port).
 
 handle_err(syntax_error(Msg)) :- !,
-        message(error, ['Could not parse:\n', $$(Msg)]), fail.
+    message(error, ['Could not parse:\n', $$(Msg)]), fail.
 handle_err(E) :- throw(E).
 
 parse_stream(S, Insns):-
-        get_line(S, Cs),
-        ( Cs = end_of_file ->
-            Insns = []
-        ; parse_line(Cs, Ins),
-          ( Ins = '#' ->
-              Insns = Insns0
-          ; Insns = [Ins|Insns0]
-          ),
-          parse_stream(S, Insns0)
-        ).
+    get_line(S, Cs),
+    ( Cs = end_of_file ->
+        Insns = []
+    ; parse_line(Cs, Ins),
+      ( Ins = '#' ->
+          Insns = Insns0
+      ; Insns = [Ins|Insns0]
+      ),
+      parse_stream(S, Insns0)
+    ).
 
 parse_line(Cs,X):- sent(X,Cs,[]), !.
 parse_line(Cs,_):- throw(syntax_error(Cs)).
@@ -90,31 +90,31 @@ directive(X) --> blanks, idcodes(Cs), { Cs = "."||_, atom_codes(X, Cs) }, !.
 
 % instruction(Ins) --> blanks, "lock;", instruction(Ins). % TODO: Maybe parse lock?
 instruction(Ins) -->
-        blanks, 
-        insname(InsName1),
-        { atom_codes(InsName, InsName1), ins(InsName, Fmt, N, _) },
-        ( blanks1,
-          oplist(Operands) -> []
-        ; { Operands = [] }
-        ), blanks,
-        ( ";" -> ignore_rest
-        ; "#" -> ignore_rest
-        ; []
-        ),
-        { length(Operands, N) },
-        { fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
-        { Ins =.. [InsName|Operands2] }.
+    blanks, 
+    insname(InsName1),
+    { atom_codes(InsName, InsName1), ins(InsName, Fmt, N, _) },
+    ( blanks1,
+      oplist(Operands) -> []
+    ; { Operands = [] }
+    ), blanks,
+    ( ";" -> ignore_rest
+    ; "#" -> ignore_rest
+    ; []
+    ),
+    { length(Operands, N) },
+    { fixins(Fmt, Operands, Operands2) -> true ; Operands2 = Operands },
+    { Ins =.. [InsName|Operands2] }.
 instruction(unsupported_ins(Ins), Str, []) :- atom_codes(Ins, Str).
 
 oplist(Ops)-->
-        operand(Op),
-        { Ops = [Op|Ops0] },
+    operand(Op),
+    { Ops = [Op|Ops0] },
+    blanks,
+    ( "," ->
         blanks,
-        ( "," ->
-            blanks,
-            oplist(Ops0)
-        ; { Ops0 = [] }
-        ).
+        oplist(Ops0)
+    ; { Ops0 = [] }
+    ).
 
 reg(Reg) --> "%", idcodes(Cs), { atom_codes(Reg, [0'%|Cs]) }. % TODO: register!
 
@@ -138,32 +138,32 @@ reg(Reg) --> "%", idcodes(Cs), { atom_codes(Reg, [0'%|Cs]) }. % TODO: register!
 % TODO: Jump to number of instruction defined by the register
 % TODO: numeric positions of instructions as in x86
 operand(addr(0,Base,Index,1)) --> % TODO: Well done? (i.e %fs:40)
-        reg(Base), ":",
-        ( reg(Index) -> []
-        ; num(Index)
-        ),
-        !.
+    reg(Base), ":",
+    ( reg(Index) -> []
+    ; num(Index)
+    ),
+    !.
 operand(indirect(Reg)) --> "*", reg(Reg).
 operand(addr(SignedOffset,Base,Index,Scale)) -->
-        ( offset(SignedOffset) -> []
-        ; { SignedOffset = 0 }
-        ),
-        "(",
-        ( reg(Base) -> []
-        ; { Base = 0 }
-        ),
-        ( ",", reg(Index) ->
-            ( ",", num(Scale) ->
-                []
-            ; { Scale = 1 }
-            )
-        ; { Index = 0, Scale = 0 } 
-        ),
-        ")",
-        !.
+    ( offset(SignedOffset) -> []
+    ; { SignedOffset = 0 }
+    ),
+    "(",
+    ( reg(Base) -> []
+    ; { Base = 0 }
+    ),
+    ( ",", reg(Index) ->
+        ( ",", num(Scale) ->
+            []
+        ; { Scale = 1 }
+        )
+    ; { Index = 0, Scale = 0 } 
+    ),
+    ")",
+    !.
 operand(addr(SignedOffset,0,0,0)) --> % TODO: not mem in "call printf"?
-        offset(SignedOffset),
-        !.
+    offset(SignedOffset),
+    !.
 operand(X) --> "$", num_or_id(X), !.
 operand(X) --> reg(X), !.
 
@@ -173,9 +173,9 @@ operand(X) --> reg(X), !.
 
 % Generate a initial value
 process_directive('.type', symbol(Name)) --> % TODO: wrong
-        blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
+    blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
 process_directive('.globl', symbol(Name)) --> % TODO: wrong
-        blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
+    blanks, idcodes(Cs), { atom_codes(Name, Cs) }, ignore_rest.
 % TODO: Process the size on init
 % TODO: process operations i.e: ".long   .LBB1_3-.LJTI1_0"
 process_directive('.int', direc(init, N)) --> blanks, num(N), ignore_rest.
@@ -186,23 +186,23 @@ process_directive('.word', direc(init, N)) --> blanks, num(N), ignore_rest.
 process_directive('.value', direc(init, N)) --> blanks, num(N), ignore_rest. % TODO: Introduce list processing
 process_directive('.zero', direc(zero, N)) --> blanks, num(N), ignore_rest.
 process_directive('.size', symbol_direc(Name, direc(size, Size))) -->
-        process_size(Name, Size).
+    process_size(Name, Size).
 process_directive('.comm', symbol_direc(Name, direc(size, Size))) -->
-        process_size(Name, Size).
+    process_size(Name, Size).
 process_directive('.asciz', direc(cons, String)) -->
-        process_directive('.ascii', direc(cons, S0)),
-        { insert_last(S0, 0, String) }, ignore_rest.
+    process_directive('.ascii', direc(cons, S0)),
+    { insert_last(S0, 0, String) }, ignore_rest.
 process_directive('.string', direc(cons, String)) -->
-        process_directive('.asciz', direc(cons, String)).
+    process_directive('.asciz', direc(cons, String)).
 process_directive('.ascii', direc(cons, String)) -->
-        blanks, string(String), ignore_rest.
+    blanks, string(String), ignore_rest.
 
 % TODO: how to process?
 process_directive('.bss', '#') --> ignore_rest.
 process_directive('.data', '#') --> ignore_rest.
 
 process_size(Name, Size) --> blanks, idcodes(Cs), ",", blanks,
-        num(Size), { atom_codes(Name, Cs)}, ignore_rest.
+    num(Size), { atom_codes(Name, Cs)}, ignore_rest.
 
 % Skip
 skip_directive('.file').

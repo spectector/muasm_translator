@@ -30,40 +30,40 @@ dump_file(F) := ~atom_concat(F, '.dump').
 :- export(has_dump/2).
 % There is a dump and it is updated
 has_dump(F, FDump) :-
-        FDump = ~dump_file(F),
-        up_to_date(FDump, F).
+    FDump = ~dump_file(F),
+    up_to_date(FDump, F).
 
 :- export(write_dump/2).
 % Write Prg to FDump file
 write_dump(FDump, Prg) :-
-        file_buffer_begin(FDump, no, Buffer, Stream),
-        current_output(CO),
-        set_output(Stream),
-        write_dump_(Prg),
-        set_output(CO),
-        ( file_buffer_commit(Buffer) ->
-            true
-        ; throw(error(could_not_write(FDump), write_dump/2))
-        ).
+    file_buffer_begin(FDump, no, Buffer, Stream),
+    current_output(CO),
+    set_output(Stream),
+    write_dump_(Prg),
+    set_output(CO),
+    ( file_buffer_commit(Buffer) ->
+        true
+    ; throw(error(could_not_write(FDump), write_dump/2))
+    ).
 
 write_dump_(Prg) :-
-        ( % (failure-driven loop)
-          member(X, Prg),
-            fast_write(X),
-            fail
-        ; true
-        ).
+    ( % (failure-driven loop)
+      member(X, Prg),
+        fast_write(X),
+        fail
+    ; true
+    ).
 
 :- export(read_dump/2).
 % Read Prg from the FDump file  
 read_dump(FDump, Prg) :-
-        open_input(FDump,OldInput),
-        read_dump_(Prg),
-        close_input(OldInput).
+    open_input(FDump,OldInput),
+    read_dump_(Prg),
+    close_input(OldInput).
 
 read_dump_(Prg) :-
-        ( fast_read(R) ->
-            Prg = [R|Prg0],
-            read_dump_(Prg0)
-        ; Prg = []
-        ).
+    ( fast_read(R) ->
+        Prg = [R|Prg0],
+        read_dump_(Prg0)
+    ; Prg = []
+    ).
