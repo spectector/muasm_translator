@@ -36,7 +36,7 @@ has_dump(F, FDump) :-
 :- export(write_dump/2).
 % Write Prg to FDump file
 write_dump(FDump, Prg) :-
-    file_buffer_begin(FDump, no, Buffer, Stream),
+    file_buffer_begin(FDump, Buffer, Stream),
     current_output(CO),
     set_output(Stream),
     write_dump_(Prg),
